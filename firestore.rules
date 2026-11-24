@@ -3,7 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 앱에 로그인(익명)한 기기만 읽고 쓸 수 있어요.
     match /fam/{code} {
-      allow read, write: if request.auth != null;
+      // 가족 코드를 아는 기기만 열 수 있어요. 가족 목록 훑어보기(list)는 막아요.
+      allow get, write: if request.auth != null;
       match /{document=**} {
         allow read, write: if request.auth != null;
       }
