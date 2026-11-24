@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FB_SDK_BASE="./vendor/firebase/";</script>
-<script src="firebase-config.js?v=7840bd74"></script>
+<script src="firebase-config.js?v=fe35a9c6"></script>
 </head>
 <body>
 <style>
@@ -84,6 +84,30 @@ h1,h2,h3{font-family:var(--f-disp);font-weight:400;margin:0;text-wrap:balance}
 .sec-title h2{font-size:19px}
 
 /* 이번 달 카드 */
+.mstat{margin-top:12px;display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:16px;padding:8px 12px}
+.mstat .ib{width:28px;height:28px;border-radius:9px}.mstat .ib svg{width:17px;height:17px}
+.mstat .tx{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.mstat .tx b{font-family:var(--f-disp);font-weight:400;font-size:19px;color:var(--ink);margin:0 2px}
+.mstat .bar{flex:1;margin:0;min-width:40px;height:7px}
+.mstat .bar i{background:var(--accent)}
+.mstat .g{font-size:12px;color:var(--muted);white-space:nowrap}
+.reading{background:linear-gradient(135deg,var(--yellow),var(--pink));border-radius:22px;padding:14px 14px 12px}
+.reading .sec-title{margin-bottom:8px}.reading .sec-title .ib{background:#fff}
+.rrow{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none}
+.rrow::-webkit-scrollbar{display:none}
+.rcard{flex:none;width:112px;display:grid;gap:6px}
+.rcard .open{border:0;background:none;padding:0;text-align:left;display:grid;gap:5px}
+.rcard .cover{border-radius:14px;box-shadow:0 4px 12px rgba(120,60,90,.15)}
+.rcard b{font-size:13px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.rcard span{font-size:11.5px;color:#7a6470;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rcard .btn{padding:6px 8px;font-size:12.5px;border-radius:10px;background:#fff;color:var(--pink-ink)}
+.bview{display:flex;gap:16px;align-items:flex-start}
+.bview .cv{width:110px;aspect-ratio:3/4;border-radius:14px;overflow:hidden;flex:none;box-shadow:var(--shadow)}
+.bview .cv img{width:100%;height:100%;object-fit:cover}
+.bview dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 10px;font-size:14px;flex:1;min-width:0}
+.bview dt{color:var(--muted)}.bview dd{margin:0;overflow-wrap:anywhere}
+.callbig{background:var(--sky);border-radius:16px;padding:12px 14px;display:grid;gap:2px}
+.callbig span{font-size:12.5px;color:#4d6a86}.callbig b{font-family:var(--f-mono);font-size:20px;color:var(--sky-ink);overflow-wrap:anywhere}
 .hero-card{margin-top:10px;border-radius:24px;padding:18px 18px 16px;background:linear-gradient(135deg,var(--pink) 0%,var(--purple) 55%,var(--sky) 100%);display:flex;gap:14px;align-items:center}
 .hero-card .k{font-size:13.5px;color:#5b4f7a;font-weight:500}
 .hero-card .v{font-family:var(--f-disp);font-size:40px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ink)}
@@ -147,8 +171,8 @@ h1,h2,h3{font-family:var(--f-disp);font-weight:400;margin:0;text-wrap:balance}
 .card .meta{padding:0 4px;display:grid;gap:3px;min-width:0}
 .card .meta b{font-weight:700;font-size:14.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .card .meta span{font-size:12.5px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.card .tag{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.92);color:var(--ink);font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px 2px 3px}
-.card .tag .dot{width:18px;height:18px;font-size:10px}
+.card .tag,.rcard .tag{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.92);color:var(--ink);font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px 2px 3px}
+.card .tag .dot,.rcard .tag .dot{width:18px;height:18px;font-size:10px}
 .card .cover .stamp{position:absolute;right:8px;top:8px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .card .ph{justify-content:flex-end}
 .card .ph svg{display:none}
@@ -547,8 +571,8 @@ const Store={
   async set(p,d){if(this.mode==='fb')return quick(this.F.setDoc(this.F.doc(this.fs,p),plain(d)));if(this.mode==='db')return this.db.doc(p).set(d);Local.set(p,d)},
   async update(p,d){if(this.mode==='fb'){const F=this.F;const pairs=flattenPatch(plain(d));if(!pairs.length)return;const args=[];pairs.forEach(([k,v])=>args.push(new F.FieldPath(...k),v));return quick(F.updateDoc(F.doc(this.fs,p),...args))}if(this.mode==='db')return this.db.doc(p).update(d);Local.update(p,d)},
   async del(p){if(this.mode==='fb')return quick(this.F.deleteDoc(this.F.doc(this.fs,p)));if(this.mode==='db')return this.db.doc(p).delete();Local.del(p)},
-  sub(col,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.collection(this.fs,col),s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.collection(col).onSnapshot(s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),s.metadata),err);return Local.sub(col,cb)},
-  subDoc(p,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.doc(this.fs,p),s=>cb(s.exists()?s.data():null,{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.doc(p).onSnapshot(s=>cb(s.exists?s.data():null,s.metadata),err);return Local.subDoc(p,cb)}
+  sub(col,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.collection(this.fs,col),{includeMetadataChanges:true},s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.collection(col).onSnapshot(s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),s.metadata),err);return Local.sub(col,cb)},
+  subDoc(p,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.doc(this.fs,p),{includeMetadataChanges:true},s=>cb(s.exists()?s.data():null,{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.doc(p).onSnapshot(s=>cb(s.exists?s.data():null,s.metadata),err);return Local.subDoc(p,cb)}
 };
 async function write(fn,okMsg){
   try{await fn();if(okMsg)toast(okMsg);return true}
@@ -586,13 +610,13 @@ function connect(code){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
   S.code=code;S.fam=undefined;S.members=[];S.libs=[];S.books=[];S.series=[];S.err=null;S.slow=false;
   let got=0;const timer=setTimeout(()=>{S.slow=true;render()},10000);
-  const tick=meta=>{if(!meta||!meta.fromCache){got++;if(got>=5){clearTimeout(timer);S.slow=false}}};
+  const okSet=new Set();const tick=(meta,k)=>{if(!meta||!meta.fromCache){okSet.add(k);if(okSet.size>=5){clearTimeout(timer);S.slow=false}}};
   const onErr=e=>{clearTimeout(timer);S.err=e&&e.code||'unavailable';render()};
-  unsubs.push(Store.subDoc(base(),(d,meta)=>{S.fam=d;tick(meta);render()},onErr));
-  unsubs.push(Store.sub(base()+'/members',(l,meta)=>{S.members=l.sort((a,b)=>(a.order??0)-(b.order??0)||String(a.name).localeCompare(b.name));tick(meta);render()},onErr));
-  unsubs.push(Store.sub(base()+'/libs',(l,meta)=>{S.libs=l.sort((a,b)=>String(a.name).localeCompare(b.name,'ko'));tick(meta);render()},onErr));
-  unsubs.push(Store.sub(base()+'/books',(l,meta)=>{S.books=l.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));tick(meta);render();sheetRefresh&&sheetRefresh()},onErr));
-  unsubs.push(Store.sub(base()+'/series',(l,meta)=>{S.series=l.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));tick(meta);render();sheetRefresh&&sheetRefresh()},onErr));
+  unsubs.push(Store.subDoc(base(),(d,meta)=>{S.fam=d;tick(meta,'fam');render()},onErr));
+  unsubs.push(Store.sub(base()+'/members',(l,meta)=>{S.members=l.sort((a,b)=>(a.order??0)-(b.order??0)||String(a.name).localeCompare(b.name));tick(meta,'members');render()},onErr));
+  unsubs.push(Store.sub(base()+'/libs',(l,meta)=>{S.libs=l.sort((a,b)=>String(a.name).localeCompare(b.name,'ko'));tick(meta,'libs');render()},onErr));
+  unsubs.push(Store.sub(base()+'/books',(l,meta)=>{S.books=l.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));tick(meta,'books');render();sheetRefresh&&sheetRefresh()},onErr));
+  unsubs.push(Store.sub(base()+'/series',(l,meta)=>{S.series=l.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));tick(meta,'series');render();sheetRefresh&&sheetRefresh()},onErr));
 }
 
 /* ---------- 화면 그리기 ---------- */
@@ -629,7 +653,7 @@ function view(){
       ${body}
     </main>
     ${S.tab==='prep'?`<div class="fab"><button class="btn primary" data-act="prep-add">+ 미리 담기</button></div>`:''}
-    ${S.tab==='shelf'?`<div class="fab">${isParent()&&kids().length?`<button class="btn" data-act="ask">빌려와 줘 문자</button>`:''}<button class="btn primary" data-act="add">+ 책 추가</button></div>`:''}
+    ${S.tab==='shelf'?`<div class="fab">${isParent()&&kids().length?`<button class="btn" data-act="ask">빌려와 줘 문자</button>`:''}${isParent()?`<button class="btn primary" data-act="add">+ 책 추가</button>`:''}</div>`:''}
     <nav class="tabbar"><div class="tabbar-in" style="--n:${tabs.length}">${tabs.map(([k,l,ic])=>`<button data-act="tab" data-id="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}${l}</button>`).join('')}</div></nav>`;
 }
 function viewbar(withAll=true){
@@ -656,13 +680,16 @@ function shelfView(){
   const loans=all.filter(onLoan).sort((a,b)=>a.loan.due<b.loan.due?-1:1);
   const ym=today().slice(0,7);
   const monthDone=all.filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(ym)).length;
-  let list=all.filter(b=>!b.seriesId||b.status==='reading');
-  if(S.filter!=='all') list=list.filter(b=>(b.status||'want')===S.filter);
+  const reading=all.filter(b=>b.status==='reading').sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+  let list=all.filter(b=>S.filter==='reading'?b.status==='reading':(!b.seriesId&&b.status!=='reading'));
+  if(S.filter!=='all'&&S.filter!=='reading') list=list.filter(b=>(b.status||'want')===S.filter);
   if(S.q.trim()){const q=S.q.trim().toLowerCase();list=list.filter(b=>[b.title,b.author,b.callNo,libLabel(b)].join(' ').toLowerCase().includes(q))}
   const owner=b=>{const m=memberOf(b.memberId);return showOwner&&m?`<span class="tag"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)}</span>`:''};
   const gm=ids.length===1?memberOf(ids[0]):null;
   return `${viewbar()}
-  <div class="hero-card"><div class="grow"><div class="k">${gm?esc(gm.name)+'의 ':''}이번 달 다 읽은 책</div><div class="v">${monthDone}<small>권</small></div>${gm&&gm.goal?`<div class="bar"><i style="width:${Math.min(100,Math.round(monthDone/gm.goal*100))}%"></i></div><div class="s">목표 ${gm.goal}권 · ${monthDone>=gm.goal?'목표 달성!':`${gm.goal-monthDone}권 남았어요`}</div>`:`<div class="s">다 읽으면 '다 읽었어요'를 눌러 주세요</div>`}</div>${ib('star','yellow','lg')}</div>
+  ${reading.length?`<section class="sec reading"><div class="sec-title">${ib('book','pink')}<h2 style="flex:1">지금 읽는 책</h2><span class="note" style="color:#7a6470">${reading.length}권</span></div>
+    <div class="rrow">${reading.map(b=>`<div class="rcard"><button class="open" data-act="open" data-id="${esc(b.id)}"><div class="cover">${coverHTML(b)}${owner(b)}</div><b>${esc(b.title)}</b><span>${seriesOf(b)?esc(seriesOf(b).name)+' '+esc(b.seriesNo||'')+'번':esc(b.author||libLabel(b)||'')}</span></button><button class="btn" data-act="mark-done" data-id="${esc(b.id)}">다 읽었어요</button></div>`).join('')}</div></section>`:''}
+  <div class="mstat">${ib('star','yellow')}<span class="tx">${gm?esc(gm.name)+' ':''}이번 달<b>${monthDone}</b>권</span>${gm&&gm.goal?`<div class="bar"><i style="width:${Math.min(100,Math.round(monthDone/gm.goal*100))}%"></i></div><span class="g">${monthDone>=gm.goal?'목표 달성!':`목표 ${gm.goal}권`}</span>`:`<span class="g" style="flex:1;text-align:right">다 읽으면 '다 읽었어요'</span>`}</div>
   ${asks.length?`<section class="sec asks"><div class="sec-title">${ib('mail','yellow').replace('class="ib','style="background:#fff" class="ib')}<h2>${isParent()?'아이에게 부탁한 책':'빌려와 달라는 부탁이 왔어요'}</h2></div>${asks.map(b=>{const by=memberOf(b.ask.by);const to=memberOf(b.memberId);return `<div class="ask-row"><div class="t"><b>${esc(b.title)}</b><span>${esc(libLabel(b))}${b.location?' · '+esc(b.location):''}${b.callNo?` · <span class="mono">${esc(b.callNo)}</span>`:''}</span><br><span>${isParent()?esc(to?.name||'')+'에게 부탁 · '+md(b.ask.at):esc(by?.name||'가족')+'의 부탁 · '+md(b.ask.at)}</span></div><button class="btn-dark" data-act="loan-now" data-id="${esc(b.id)}">빌렸어요</button></div>`}).join('')}</section>`:''}
   <section class="sec loan">
     <button class="loan-toggle" data-act="loan-toggle" aria-expanded="${S.loanOpen}">
@@ -678,7 +705,7 @@ function shelfView(){
   ${sers.length||isParent()?`<section class="sec"><div class="sec-title">${ib('sets','purple')}<h2 style="flex:1">우리집 전집</h2></div>
     <div class="series-row">${sers.map(x=>{const bs=S.books.filter(b=>b.seriesId===x.id&&ids.includes(b.memberId));const d=bs.filter(b=>b.status==='done').length;
       return `<button class="scard" data-act="series" data-id="${esc(x.id)}"><div class="cover">${mosaic(x)}</div><b>${esc(x.name)}</b><div class="bar"><i style="width:${bs.length?Math.round(d/bs.length*100):0}%;background:var(--purple-ink)"></i></div><span>${d} / ${bs.length}권 읽음</span></button>`}).join('')}
-    ${isParent()?`<button class="scard add" data-act="series-new"><div class="cover">+ 전집 추가</div><span>표지와 제목만 넣으면 돼요</span></button>`:''}</div></section>`:''}
+    ${isParent()?`<button class="scard add" data-act="series-new"><div class="cover">+ 전집 추가</div><span>전집 이름과 책 제목만 넣으면 돼요</span></button>`:''}</div></section>`:''}
   <section class="sec">
     <div class="tools">
       <div class="seg" role="group" aria-label="상태">${[['all','전체'],['want','읽을 책'],['reading','읽는 중'],['done','다 읽음']].map(([k,l])=>`<button data-act="filter" data-id="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('')}</div>
@@ -688,7 +715,7 @@ function shelfView(){
         <div class="cover">${coverHTML(b)}${owner(b)}${onLoan(b)?dueStamp(b):b.status==='done'?`<span class="stamp read">다 읽음 ${md(b.doneAt)}</span>`:''}</div>
         <div class="meta"><b>${esc(b.title)}</b><span>${seriesOf(b)?esc(seriesOf(b).name)+' '+esc(b.seriesNo||'')+'번':esc(b.author||'')+(b.author&&libLabel(b)?' · ':'')+esc(libLabel(b))}</span><span class="pill ${esc(b.status||'want')}">${statusLabel(b)}</span></div>
       </button>`).join('')}</div>`
-    :`<div class="empty">${all.length?'조건에 맞는 책이 없어요.':`<b>아직 책장이 비어 있어요</b><span>도서관 검색 결과를 붙여넣거나 집에 있는 책을 추가해 보세요.</span><button class="btn primary" data-act="add">+ 첫 책 추가하기</button>`}</div>`}
+    :`<div class="empty">${all.length?'조건에 맞는 책이 없어요.':(isParent()?`<b>아직 책장이 비어 있어요</b><span>도서관 검색 결과를 붙여넣거나 집에 있는 책을 추가해 보세요.</span><button class="btn primary" data-act="add">+ 첫 책 추가하기</button>`:`<b>아직 책장이 비어 있어요</b><span>엄마·아빠가 책을 넣어 주면 여기에 보여요.</span>`)}</div>`}
   </section>`;
 }
 
@@ -856,6 +883,7 @@ function libOptions(sel){return S.libs.map(l=>`<option value="${esc(l.id)}" ${l.
 function openBook(id,preset,draft){
   const b=id?S.books.find(x=>x.id===id):null;
   if(id&&!b) return;
+  if(!isParent()){if(b)openBookView(b.id);return}
   const canEdit=!b||isParent()||b.memberId===S.me;
   const parent=isParent();
   let cover=b?safeImg(b.cover):'';let coverBlob=null;let rating=b?.rating||0;let status=b?.status||'want';
@@ -993,6 +1021,32 @@ function openBook(id,preset,draft){
         if(!b&&!more&&data.hidden&&S.tab!=='prep'){}
       }
     });
+  });
+}
+
+/* 아이용: 책 보기 (고치기 칸 없음) */
+function openBookView(id){
+  const b=S.books.find(x=>x.id===id);if(!b)return;
+  const mine=b.memberId===S.me;const home=isHome(b);const sx=seriesOf(b);
+  const row=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:'';
+  openSheet(`<div class="sheet-h"><h2>${esc(b.title)}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form">
+    <div class="bview"><div class="cv">${coverHTML(b)}</div><dl>
+      ${sx?row('전집',sx.name+(b.seriesNo?' '+b.seriesNo+'번':'')):''}${row('지은이',b.author)}${row('그린이',b.illustrator)}${row('출판사',b.publisher)}
+      ${row('어디',[libLabel(b),b.location].filter(Boolean).join(' · '))}${b.status==='done'&&b.doneAt?row('다 읽은 날',md(b.doneAt)):''}
+    </dl></div>
+    ${!home&&b.callNo?`<div class="callbig"><span>도서관에서 이 번호를 찾아요 (청구기호)</span><b>${esc(b.callNo)}</b></div>`:''}
+    ${mine?`<div class="box"><h3>읽기</h3>
+      <div class="seg" role="group" aria-label="읽기 상태">${[['want','읽기 전'],['reading','읽는 중'],['done','다 읽음']].map(([k,l])=>`<button type="button" data-vst="${k}" aria-pressed="${(b.status||'want')===k}">${l}</button>`).join('')}</div>
+      ${b.status==='done'?`<p style="margin:0">${b.rating?`<span style="color:#E8B100;font-size:18px">${'★'.repeat(Math.min(5,+b.rating||0))}</span> `:''}${b.memo?esc(b.memo):'<span class="note">아직 한줄평이 없어요</span>'}</p><button type="button" class="btn sm" data-act="mark-done" data-id="${esc(b.id)}" style="justify-self:start">별점·한줄평 ${b.memo||b.rating?'고치기':'쓰기'}</button>`:''}
+    </div>
+    ${!home?`<div class="box"><h3>도서관</h3><div class="actions">${onLoan(b)?`${dueStamp(b)}<button class="btn sm" data-act="extend" data-id="${esc(b.id)}">반납일 +7일</button><button class="btn sm primary" data-act="return" data-id="${esc(b.id)}">반납했어요</button>`:`<button class="btn sm primary" data-act="loan-now" data-id="${esc(b.id)}">오늘 빌렸어요</button>`}</div></div>`:''}`:''}
+  </div>`,root=>{
+    root.querySelectorAll('[data-vst]').forEach(el=>el.addEventListener('click',async()=>{
+      const st=el.dataset.vst;if(st===(b.status||'want'))return;
+      if(st==='done'){openDone(b.id);return}
+      if(await write(()=>Store.update(base()+'/books/'+b.id,{status:st,doneAt:'',updatedAt:new Date().toISOString()}),st==='reading'?'읽기 시작!':'읽기 전으로 바꿨어요'))closeSheet();
+    }));
   });
 }
 
@@ -1340,14 +1394,14 @@ function openMember(id){
 
 /* ---------- 동작 ---------- */
 async function bookUpdate(id,patch,msg){const b=S.books.find(x=>x.id===id);if(!b)return;if(!isParent()&&b.memberId!==S.me){toast('다른 가족의 책은 고칠 수 없어요');return}
-  await write(()=>Store.update(base()+'/books/'+id,{...patch,updatedAt:new Date().toISOString()}),msg);if(!$('#sheetWrap').hidden&&$('#book-form'))closeSheet()}
+  await write(()=>Store.update(base()+'/books/'+id,{...patch,updatedAt:new Date().toISOString()}),msg);if(!$('#sheetWrap').hidden&&($('#book-form')||$('#sheet .bview')))closeSheet()}
 const ACT={
   'close-sheet':()=>closeSheet(),
   tab:el=>{S.tab=el.dataset.id;window.scrollTo(0,0);render()},
   view:el=>{S.view=el.dataset.id;S.calDay=null;render()},
   filter:el=>{S.filter=el.dataset.id;render()},
   'loan-toggle':()=>{S.loanOpen=!S.loanOpen;try{localStorage.setItem('gbs-loanopen',S.loanOpen?'1':'0')}catch(e){}render()},
-  add:()=>openBook(null),
+  add:()=>{if(isParent())openBook(null)},
   open:el=>openBook(el.dataset.id),
   ask:el=>openAsk(el.dataset.id,el.dataset.book),
   settings:()=>openSettings(),
