@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FB_SDK_BASE="./vendor/firebase/";</script>
-<script src="firebase-config.js?v=caa420d1"></script>
+<script src="firebase-config.js?v=e66c1aa2"></script>
 </head>
 <body>
 <style>
@@ -35,6 +35,14 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{background:var(--bg)}
+html{overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@supports (overflow:clip){html{overflow-x:clip}}
+body{touch-action:manipulation}
+.list,.feed,.srows,.rank,.form,.box,.asks,.badges{grid-template-columns:minmax(0,1fr)}
+.badges{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}
+.wrap>*,main>*{min-width:0;max-width:100%}
+.prow .t,.li .t,.loan-row .t,.ask-row .t,.srow .t,.card .meta,.rcard{overflow:hidden}
+.prow .t span,.li .t span,.ask-row .t span,.loan-row .t span,.bview dd{overflow-wrap:anywhere}
 body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -43,7 +51,7 @@ button{cursor:pointer}
 h1,h2,h3{font-family:var(--f-disp);font-weight:400;margin:0;text-wrap:balance}
 .mono{font-family:var(--f-mono);font-size:.92em}
 .muted{color:var(--muted)}
-.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 150px}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 150px}
 
 /* 아이콘 버블 */
 .ib{width:36px;height:36px;border-radius:12px;display:inline-grid;place-items:center;flex:none;background:var(--b,var(--purple));color:var(--bi,var(--purple-ink))}
@@ -53,7 +61,7 @@ h1,h2,h3{font-family:var(--f-disp);font-weight:400;margin:0;text-wrap:balance}
 
 /* header */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.top-in{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:12px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:12px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
 .brand .tx{display:grid;min-width:0;line-height:1.2}
 .logo{font-family:var(--f-disp);font-size:22px;color:var(--ink);white-space:nowrap}
@@ -276,7 +284,7 @@ label.f,.f{display:grid;gap:5px;font-size:13px;color:var(--muted);min-width:0;fo
 .paste .ttl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px}
 .paste .ttl .ib{width:30px;height:30px;border-radius:10px;background:#fff}
 .paste .ttl .ib svg{width:18px;height:18px}
-.paste textarea{min-height:84px;font-family:var(--f-mono);font-size:13.5px;width:100%;border:0;background:#fff;border-radius:14px;padding:10px 12px;resize:vertical}
+.paste textarea{min-height:84px;font-family:var(--f-mono);font-size:16px;width:100%;border:0;background:#fff;border-radius:14px;padding:10px 12px;resize:vertical}
 .paste p{margin:0;font-size:13px;color:#4d6a86}
 .cover-pick{display:flex;gap:14px;align-items:center}
 .cover-pick .prev{width:86px;height:114px;border-radius:14px;overflow:hidden;background:var(--pink);flex:none;display:grid;place-items:center;color:var(--pink-ink);font-size:12px;text-align:center;font-weight:700}
@@ -306,7 +314,7 @@ label.f,.f{display:grid;gap:5px;font-size:13px;color:var(--muted);min-width:0;fo
 .swatches{display:flex;gap:10px;flex-wrap:wrap}
 .swatches button{width:34px;height:34px;border-radius:50%;border:0;background:var(--c);box-shadow:0 0 0 3px #fff,0 0 0 3px transparent}
 .swatches button[aria-pressed="true"]{box-shadow:0 0 0 3px #fff,0 0 0 5.5px var(--accent)}
-.askbox textarea{min-height:170px;font-size:15px}
+.askbox textarea{min-height:170px;font-size:16px}
 
 /* 처음 화면 */
 .hero{padding-block:40px 6px;display:grid;gap:12px;justify-items:start}
