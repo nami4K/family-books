@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FB_SDK_BASE="./vendor/firebase/";</script>
-<script src="firebase-config.js?v=9f64ae2f"></script>
+<script src="firebase-config.js?v=7840bd74"></script>
 </head>
 <body>
 <style>
@@ -599,6 +599,7 @@ function connect(code){
 function render(){
   const ae=document.activeElement;const keep=ae&&ae.id&&$('#app').contains(ae)?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
   $('#app').innerHTML=view();
+  Back.sync();
   if(!S.restoreDone&&S.fam&&me()&&S.members.length){S.restoreDone=true;setTimeout(restoreSession,900)}
   if(keep){const el=document.getElementById(keep.id);if(el){el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
 }
@@ -829,8 +830,19 @@ function restoreSession(){
   const l=Last.get();
   if(l&&l.code===S.code&&l.kind==='series'&&S.series.some(x=>x.id===l.id)&&$('#sheetWrap').hidden) openSeries(l.id,l.cur);
 }
-function openSheet(html,mount){sheetRefresh=null;Last.clear();$('#sheet').innerHTML=html;$('#sheetWrap').hidden=false;document.body.style.overflow='hidden';$('#sheet').scrollTop=0;mount&&mount($('#sheet'))}
-function closeSheet(){sheetRefresh=null;Draft.clear();Last.clear();$('#sheetWrap').hidden=true;$('#sheet').innerHTML='';document.body.style.overflow=''}
+/* 휴대폰 뒤로가기 */
+const Back={on:!!window.FB_CONFIG,hist:0,ignore:0,
+  depth(){return (!$('#sheetWrap').hidden?1:0)+(S.code&&me()&&S.tab!=='shelf'?1:0)},
+  sync(){if(!this.on)return;const want=this.depth();
+    while(this.hist<want){history.pushState({gbs:this.hist+1},'');this.hist++}
+    if(this.hist>want){this.ignore++;history.go(-(this.hist-want));this.hist=want}},
+  pop(){if(this.ignore>0){this.ignore--;return}
+    this.hist=Math.max(0,this.hist-1);
+    if(!$('#sheetWrap').hidden){closeSheet(true);return}
+    if(S.tab!=='shelf'){S.tab='shelf';window.scrollTo(0,0);render();return}}};
+window.addEventListener('popstate',()=>Back.pop());
+function openSheet(html,mount){sheetRefresh=null;Last.clear();$('#sheet').innerHTML=html;$('#sheetWrap').hidden=false;document.body.style.overflow='hidden';$('#sheet').scrollTop=0;mount&&mount($('#sheet'));Back.sync()}
+function closeSheet(fromBack){sheetRefresh=null;Draft.clear();Last.clear();$('#sheetWrap').hidden=true;$('#sheet').innerHTML='';document.body.style.overflow='';if(!fromBack)Back.sync()}
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
 
 const COVER_MAX=200;
@@ -1067,9 +1079,7 @@ function openSeriesForm(id,draft){
     root.querySelectorAll('[data-w]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.w;who.has(k)?who.delete(k):who.add(k);el.setAttribute('aria-pressed',who.has(k));saveDraft()}));
     if(draft)fillFields(root,draft.fields);
     f('s-form').addEventListener('input',saveDraft);
-    if(x){let armed=false;f('s-del').addEventListener('click',async()=>{const bs=S.books.filter(b=>b.seriesId===x.id);if(!armed){armed=true;f('s-del').textContent=`책 ${bs.length}권까지 지워져요. 한 번 더 누르기`;return}
-      f('s-prog').textContent='지우는 중이에요…';for(let i=0;i<bs.length;i+=8){await Promise.all(bs.slice(i,i+8).map(b=>write(()=>Store.del(base()+'/books/'+b.id))))}
-      if(await write(()=>Store.del(base()+'/series/'+x.id),'전집을 지웠어요'))closeSheet()})}
+    if(x)armDelete(f('s-del'),x,f('s-prog'));
     f('s-form').addEventListener('submit',async e=>{e.preventDefault();const er=f('s-err');er.hidden=true;
       const name=f('s-name').value.trim();if(!name){er.textContent='전집 이름을 적어 주세요.';er.hidden=false;return}
       if(x){if(await write(()=>Store.update(base()+'/series/'+x.id,{name,publisher:f('s-pub').value.trim()}),'저장했어요'))openSeries(x.id);return}
@@ -1087,6 +1097,19 @@ function openSeriesForm(id,draft){
     });
   });
 }
+async function deleteSeries(x,prog){
+  const bs=S.books.filter(b=>b.seriesId===x.id);let done=0;
+  for(let i=0;i<bs.length;i+=8){await Promise.all(bs.slice(i,i+8).map(b=>write(()=>Store.del(base()+'/books/'+b.id))));done=Math.min(bs.length,i+8);if(prog)prog.textContent=`지우는 중이에요… ${done} / ${bs.length}`}
+  return write(()=>Store.del(base()+'/series/'+x.id),`'${x.name}' 전집을 지웠어요`);
+}
+function armDelete(btn,x,prog){
+  let armed=false;
+  btn.addEventListener('click',async()=>{
+    const n=new Set(S.books.filter(b=>b.seriesId===x.id).map(b=>b.seriesNo)).size;
+    if(!armed){armed=true;btn.textContent=`정말 지울까요? 책 ${n}권도 같이 지워져요 · 한 번 더 누르기`;btn.style.background='var(--danger)';btn.style.color='#fff';setTimeout(()=>{if(armed&&btn.isConnected){armed=false;btn.textContent='전집 지우기';btn.style.background='';btn.style.color=''}},6000);return}
+    btn.disabled=true;if(await deleteSeries(x,prog))closeSheet();else btn.disabled=false;
+  });
+}
 function openSeries(id,forMember){
   const x=S.series.find(s=>s.id===id);if(!x){closeSheet();return}
   const parent=isParent();
@@ -1099,7 +1122,8 @@ function openSeries(id,forMember){
     ${parent&&mids.length>1?`<div class="subtabs" id="sr-tabs">${mids.map(mid=>{const m=memberOf(mid);return `<button type="button" class="chip" data-m="${esc(mid)}" aria-pressed="${mid===cur}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`}).join('')}</div>`:''}
     <p class="note">${parent?'왼쪽 사진 칸을 눌러 표지를 고르면 바로 저장돼요(저장 버튼이 따로 없어요). ':''}오른쪽 버튼을 누를 때마다 읽기 전 → 읽는 중 → 다 읽음으로 바뀌어요.</p>
     <div class="srows" id="sr-list"></div>
-    ${parent?`<div class="box"><h3>책 더 넣기</h3><textarea class="inp" id="sr-more" rows="3" placeholder="한 줄에 한 권씩"></textarea><div class="actions"><button type="button" class="btn sm primary" id="sr-add">추가</button><button type="button" class="btn sm" id="sr-edit">전집 이름 고치기</button><span class="note" id="sr-msg"></span></div></div>`:''}
+    ${parent?`<div class="box"><h3>책 더 넣기</h3><textarea class="inp" id="sr-more" rows="3" placeholder="한 줄에 한 권씩"></textarea><div class="actions"><button type="button" class="btn sm primary" id="sr-add">추가</button><button type="button" class="btn sm" id="sr-edit">전집 이름 고치기</button><span class="note" id="sr-msg"></span></div></div>
+    <div class="actions"><button type="button" class="btn sm danger" id="sr-del">전집 지우기</button><span class="note" id="sr-delmsg"></span></div>`:''}
   </div>`,root=>{
     const f=k=>root.querySelector('#'+k);
     const draw=()=>{
@@ -1127,6 +1151,7 @@ function openSeries(id,forMember){
     f('sr-add')?.addEventListener('click',async()=>{const last=Math.max(0,...S.books.filter(b=>b.seriesId===x.id).map(b=>+b.seriesNo||0));const items=parseTitles(f('sr-more').value,last+1);if(!items.length)return;
       f('sr-add').disabled=true;const ok=await addSeriesBooks(x,items,mids,(d,t)=>f('sr-msg').textContent=`${d} / ${t}`);f('sr-add').disabled=false;f('sr-more').value='';f('sr-msg').textContent=ok?`${items.length}권을 더 넣었어요`:'일부를 넣지 못했어요'});
     f('sr-edit')?.addEventListener('click',()=>openSeriesForm(x.id));
+    if(f('sr-del'))armDelete(f('sr-del'),x,f('sr-delmsg'));
   });
 }
 

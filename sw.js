@@ -1,5 +1,5 @@
-// 가족 책도장 서비스 워커 (버전 9f64ae2f)
-const V='gbs-9f64ae2f';
+// 가족 책도장 서비스 워커 (버전 7840bd74)
+const V='gbs-7840bd74';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./vendor/firebase/firebase-app.js','./vendor/firebase/firebase-auth.js','./vendor/firebase/firebase-firestore.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
