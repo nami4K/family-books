@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FB_SDK_BASE="./vendor/firebase/";</script>
-<script src="firebase-config.js?v=fe35a9c6"></script>
+<script src="firebase-config.js?v=caa420d1"></script>
 </head>
 <body>
 <style>
@@ -345,6 +345,11 @@ label.f,.f{display:grid;gap:5px;font-size:13px;color:var(--muted);min-width:0;fo
 .rcov svg{width:20px;height:20px}
 .rcov img{width:100%;height:100%;object-fit:cover}
 .rcov input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.mini,.cv,.rcov,.cover{position:relative}
+.fav{position:absolute;right:6px;bottom:6px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.95);display:grid;place-items:center;box-shadow:0 2px 6px rgba(160,110,0,.35);pointer-events:none}
+.fav svg{width:22px;height:22px}
+.mini .fav,.rcov .fav,.day .fav{right:1px;bottom:1px;width:16px;height:16px;box-shadow:0 1px 3px rgba(160,110,0,.35)}
+.mini .fav svg,.rcov .fav svg{width:12px;height:12px}
 .srow .no{font-family:var(--f-disp);color:var(--muted);min-width:24px;font-variant-numeric:tabular-nums}
 .srow .t{flex:1;min-width:0;border:0;background:none;text-align:left;padding:4px 0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .srow.done .t{color:var(--muted)}
@@ -425,6 +430,7 @@ const ICON={
   bookmark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-6-4-6 4z" fill="currentColor" fill-opacity=".2"/><path d="M12 7v5.5M9.2 9.8h5.6"/></svg>',
   sets:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="4.5" height="15" rx="1.2" fill="currentColor" fill-opacity=".2"/><rect x="8.5" y="5" width="4.5" height="15" rx="1.2"/><rect x="14" y="5" width="4.5" height="15" rx="1.2" fill="currentColor" fill-opacity=".2"/><path d="M2.5 20.5h19"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  favstar:'<svg viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2-4.6-4.4 6.3-.9z" fill="#FFC93C" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>',
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.5h6.8L17 8h3v11H4z" fill="currentColor" fill-opacity=".15"/><circle cx="12" cy="13" r="3.4"/></svg>',
   medal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 2.5 6M16 3l-2.5 6"/><circle cx="12" cy="15" r="6" fill="currentColor" fill-opacity=".2"/><path d="m12 12.3.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/></svg>',
   chev:'<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>',
@@ -662,7 +668,8 @@ function viewbar(withAll=true){
 }
 function coverHTML(b){
   const img=safeImg(b.cover)||safeImg(seriesOf(b)?.cover);const m=memberOf(b.memberId);
-  return img?`<img src="${img}" alt="">`:`<div class="ph" style="${cv(m?.color)}">${ICON.book}<span>${esc(b.title)}</span></div>`;
+  const fav=+b.rating>=5?`<span class="fav" title="별 5개 책" aria-label="별 5개">${ICON.favstar}</span>`:'';
+  return (img?`<img src="${img}" alt="">`:`<div class="ph" style="${cv(m?.color)}">${ICON.book}<span>${esc(b.title)}</span></div>`)+fav;
 }
 function dueStamp(b){
   const d=diffDays(b.loan.due,today());
