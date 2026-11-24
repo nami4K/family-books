@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script>window.FB_SDK_BASE="./vendor/firebase/";</script>
-<script src="firebase-config.js?v=d973db2d"></script>
+<script src="firebase-config.js?v=9f64ae2f"></script>
 </head>
 <body>
 <style>
@@ -324,6 +324,10 @@ label.f,.f{display:grid;gap:5px;font-size:13px;color:var(--muted);min-width:0;fo
 .srow .no{font-family:var(--f-disp);color:var(--muted);min-width:24px;font-variant-numeric:tabular-nums}
 .srow .t{flex:1;min-width:0;border:0;background:none;text-align:left;padding:4px 0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .srow.done .t{color:var(--muted)}
+.st-btn{border:0;border-radius:999px;padding:7px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;flex:none;background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1.5px #DEDAEA;min-width:68px}
+.st-btn.reading{background:var(--yellow);color:var(--yellow-ink);box-shadow:none}
+.st-btn.done{background:var(--pink);color:var(--pink-ink);box-shadow:none}
+.draft-note{background:var(--sky);color:#24557f;border-radius:12px;padding:8px 12px;font-size:13px}
 .chk{width:40px;height:40px;border-radius:12px;border:2px solid #DEDAEA;background:#fff;display:grid;place-items:center;color:transparent;flex:none}
 .chk svg{width:22px;height:22px}
 .chk.on{background:var(--pink);border-color:var(--pink);color:var(--pink-ink)}
@@ -405,14 +409,37 @@ const ICON={
 const ib=(name,tone,cls='')=>`<span class="ib ${tone} ${cls}">${ICON[name]}</span>`;
 
 /* ---------- 붙여넣기 해석 (도서관마다 다른 형식) ---------- */
+function dedupeTitle(t){
+  t=String(t||'').replace(/\s+/g,' ').trim();
+  const w=t.split(' ');
+  for(let n=1;n<=w.length/2;n++){ // "A B A B" -> "A B"
+    if(w.length%n===0){const u=w.slice(0,n).join(' ');let ok=true;for(let i=n;i<w.length;i+=n){if(w.slice(i,i+n).join(' ')!==u){ok=false;break}}if(ok&&w.length>n)return u}
+  }
+  const h=t.length/2; if(Number.isInteger(h)&&t.slice(0,h)===t.slice(h))return t.slice(0,h).trim();
+  return t;
+}
+const AUTH_RE=/(글|지음|그림|그린이|저|지은이|엮음|옮김|역|편|글·그림|글\/그림|원작)\s*$/;
+function splitPeople(s){
+  const au=[],il=[];
+  String(s).split(/[;；,]/).map(x=>x.trim()).filter(Boolean).forEach(p=>{
+    if(/글\s*[·\/]\s*그림/.test(p)){const n=p.replace(/\s*글\s*[·\/]\s*그림\s*$/,'').trim();au.push(n);il.push(n);return}
+    if(/(그림|그린이|삽화)\s*$/.test(p)||/^(그림|그린이)\s*[:：]?/.test(p)) il.push(p.replace(/\s*(그림|그린이|삽화)\s*[:：]?\s*/g,' ').trim());
+    else au.push(p.replace(/\s*(지음|글|저|지은이|엮음|옮김|역|편|원작)\s*$/,'').replace(/^(글|저자|지은이)\s*[:：]?\s*/,'').trim());
+  });
+  return {author:au.filter(Boolean).join(', '),illustrator:il.filter(Boolean).join(', ')};
+}
+function cleanLines(text){
+  return String(text).replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').split('\n')
+    .map(l=>l.replace(/https?:\/\/\S+/g,'').replace(/^\s*[*•·\-–▶>]+\s*/,'').trim()).filter(Boolean);
+}
 function parseBookText(raw){
   const out={};
   if(!raw) return out;
-  let t=String(raw).replace(/\r/g,'').replace(/ /g,' ');
+  let t=String(raw).replace(/\r/g,'').replace(/ /g,' ').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1');
   const hi=t.indexOf('도서관명');
   if(hi>=0){ // 형식 1: 표
-    const before=t.slice(0,hi).replace(/\s+/g,' ').trim();
-    if(before) out.title=before;
+    const pre=cleanLines(t.slice(0,hi));
+    if(pre.length) out.title=dedupeTitle([...new Set(pre)].join(' '));
     const lines=t.slice(hi).split('\n');
     let rows=lines.slice(1).filter(l=>l.trim());
     const known=['도서관명','소장위치','청구기호','등록번호','대출여부','반납예정','예약자수','예약','자료실','상태','대출상태','반납예정일'];
@@ -426,7 +453,7 @@ function parseBookText(raw){
       const vals=r.split('\t').map(s=>s.trim());
       const rec={};
       if(vals.length>=4){headerTokens.forEach((h,i)=>rec[h]=vals[i]||'');}
-      else{ // 탭이 사라진 경우: 생김새로 추정
+      else{
         const tk=r.trim().split(/\s+/);
         rec['도서관명']=tk.find(x=>/도서관$/.test(x))||tk[0];
         rec['등록번호']=tk.find(x=>/^[A-Z]{1,4}\d{5,}$/.test(x))||'';
@@ -437,41 +464,41 @@ function parseBookText(raw){
       }
       return rec;
     }).filter(r=>Object.values(r).some(Boolean));
-    const pick=recs.find(r=>/가능/.test(r['대출여부']||''))||recs[0];
+    const pick=recs.find(r=>/가능/.test(r['대출여부']||'')&&!/불가/.test(r['대출여부']||''))||recs[0];
     if(pick){
       out.library=pick['도서관명']||'';out.location=pick['소장위치']||'';
       out.callNo=pick['청구기호']||'';out.regNo=pick['등록번호']||'';out.availability=pick['대출여부']||'';
     }
     return cleanObj(out);
   }
-  // 형식 2: "키: 값"
-  const keyMap={'제목':'title','서명':'title','도서명':'title','자료명':'title','저자':'author','지은이':'author','저자사항':'author','출판사':'publisher','발행처':'publisher','발행자':'publisher','출판년도':'year','발행년도':'year','출판연도':'year','발행년':'year','소장학교':'library','소장도서관':'library','도서관':'library','소장처':'location','소장위치':'location','자료실':'location','청구기호':'callNo','등록번호':'regNo','대출상태':'availability','대출여부':'availability','상태':'availability'};
+  // 형식 2: "키: 값" (줄·| 로 나뉜 것도)
+  const keyMap={'제목':'title','서명':'title','도서명':'title','자료명':'title','저자':'author','지은이':'author','저자사항':'author','출판사':'publisher','발행처':'publisher','발행자':'publisher','출판년도':'year','발행년도':'year','출판연도':'year','발행년':'year','소장학교':'library','소장도서관':'library','도서관':'library','소장처':'location','소장위치':'location','자료실':'location','청구기호':'callNo','등록번호':'regNo','대출상태':'availability','대출여부':'availability','대출가능여부':'availability','대출':'availability','상태':'availability','ISBN':'isbn'};
   const keys=Object.keys(keyMap).sort((a,b)=>b.length-a.length);
   const re=new RegExp('('+keys.join('|')+')\\s*[:：]','g');
   const hits=[];let m;
   while((m=re.exec(t))){hits.push({k:m[1],s:m.index,e:re.lastIndex});}
   if(hits.length){
-    const pre=t.slice(0,hits[0].s).replace(/\s+/g,' ').trim();
-    if(pre) out.title=pre;
+    // 첫 키 앞: 제목과 "○○ 글" 같은 지은이 줄
+    const pre=cleanLines(t.slice(0,hits[0].s));
+    const titleLines=[];
+    pre.forEach(l=>{ if(AUTH_RE.test(l)&&l.length<60&&!out.author){const p=splitPeople(l);if(p.author)out.author=p.author;if(p.illustrator)out.illustrator=p.illustrator} else titleLines.push(l) });
+    if(titleLines.length) out.title=dedupeTitle([...new Set(titleLines)].join(' '));
     hits.forEach((h,i)=>{
-      const v=t.slice(h.e,i+1<hits.length?hits[i+1].s:t.length).replace(/\s+/g,' ').trim();
+      let v=t.slice(h.e,i+1<hits.length?hits[i+1].s:t.length);
+      v=v.split('|')[0].replace(/\n[\s\S]*$/,m=>i+1<hits.length?m:m).replace(/\s+/g,' ').replace(/[*•·|\s]+$/,'').trim();
       const f=keyMap[h.k];
-      if(v&&(!out[f]||f==='title')) out[f]=v;
+      if(!v) return;
+      if(f==='library'){const mm=v.match(/^(\S*(?:도서관|학교|센터))\s+(.+)$/);if(mm){v=mm[1];if(!out.location)out.location=mm[2].trim()}}
+      if(f==='availability'&&/^(가능|불가능|불가)$/.test(v)) v='대출 '+v;
+      if(f==='author'){const p=splitPeople(v);if(p.author&&!out.author)out.author=p.author;if(p.illustrator&&!out.illustrator)out.illustrator=p.illustrator;return}
+      if(!out[f]||f==='title') out[f]=v;
     });
-    if(out.author){
-      const au=[],il=[];
-      out.author.split(/[;；,]/).map(s=>s.trim()).filter(Boolean).forEach(p=>{
-        if(/그림|그린이|삽화/.test(p)) il.push(p.replace(/\s*(그림|그린이|삽화)\s*/g,' ').trim());
-        else au.push(p.replace(/\s*(지음|글|저|지은이|엮음|옮김)\s*$/,'').trim());
-      });
-      out.author=au.join(', ');
-      if(il.length) out.illustrator=il.join(', ');
-    }
     if(out.year){const y=out.year.match(/\d{4}/);out.year=y?y[0]:out.year;}
+    if(out.title) out.title=dedupeTitle(out.title);
     return cleanObj(out);
   }
-  const first=t.split('\n').map(s=>s.trim()).filter(Boolean)[0];
-  if(first&&first.length<60) out.title=first;
+  const first=cleanLines(t)[0];
+  if(first&&first.length<60) out.title=dedupeTitle(first);
   return cleanObj(out);
 }
 function cleanObj(o){Object.keys(o).forEach(k=>{if(typeof o[k]==='string'){o[k]=o[k].trim();if(!o[k])delete o[k];}});return o;}
@@ -572,6 +599,7 @@ function connect(code){
 function render(){
   const ae=document.activeElement;const keep=ae&&ae.id&&$('#app').contains(ae)?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
   $('#app').innerHTML=view();
+  if(!S.restoreDone&&S.fam&&me()&&S.members.length){S.restoreDone=true;setTimeout(restoreSession,900)}
   if(keep){const el=document.getElementById(keep.id);if(el){el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
 }
 function view(){
@@ -627,7 +655,7 @@ function shelfView(){
   const loans=all.filter(onLoan).sort((a,b)=>a.loan.due<b.loan.due?-1:1);
   const ym=today().slice(0,7);
   const monthDone=all.filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(ym)).length;
-  let list=all.filter(b=>!b.seriesId);
+  let list=all.filter(b=>!b.seriesId||b.status==='reading');
   if(S.filter!=='all') list=list.filter(b=>(b.status||'want')===S.filter);
   if(S.q.trim()){const q=S.q.trim().toLowerCase();list=list.filter(b=>[b.title,b.author,b.callNo,libLabel(b)].join(' ').toLowerCase().includes(q))}
   const owner=b=>{const m=memberOf(b.memberId);return showOwner&&m?`<span class="tag"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)}</span>`:''};
@@ -657,7 +685,7 @@ function shelfView(){
     </div>
     ${list.length?`<div class="grid">${list.map(b=>`<button class="card" data-act="open" data-id="${esc(b.id)}">
         <div class="cover">${coverHTML(b)}${owner(b)}${onLoan(b)?dueStamp(b):b.status==='done'?`<span class="stamp read">다 읽음 ${md(b.doneAt)}</span>`:''}</div>
-        <div class="meta"><b>${esc(b.title)}</b><span>${esc(b.author||'')}${b.author&&libLabel(b)?' · ':''}${esc(libLabel(b))}</span><span class="pill ${esc(b.status||'want')}">${statusLabel(b)}</span></div>
+        <div class="meta"><b>${esc(b.title)}</b><span>${seriesOf(b)?esc(seriesOf(b).name)+' '+esc(b.seriesNo||'')+'번':esc(b.author||'')+(b.author&&libLabel(b)?' · ':'')+esc(libLabel(b))}</span><span class="pill ${esc(b.status||'want')}">${statusLabel(b)}</span></div>
       </button>`).join('')}</div>`
     :`<div class="empty">${all.length?'조건에 맞는 책이 없어요.':`<b>아직 책장이 비어 있어요</b><span>도서관 검색 결과를 붙여넣거나 집에 있는 책을 추가해 보세요.</span><button class="btn primary" data-act="add">+ 첫 책 추가하기</button>`}</div>`}
   </section>`;
@@ -727,6 +755,7 @@ function prepView(){
     <button class="btn sm" data-act="prep-all">${n&&n===list.length?'선택 풀기':'모두 고르기'}</button>
     <button class="btn sm primary" data-act="prep-send" ${n?'':'disabled'}>책장으로 보내기${n?' '+n:''}</button>
     <button class="btn sm" data-act="prep-ask" style="background:var(--yellow);color:var(--yellow-ink)" ${n?'':'disabled'}>빌려와 줘 문자${n?' '+n:''}</button>
+    <button class="btn sm" data-act="prep-copy" style="background:var(--purple);color:var(--purple-ink)" ${n?'':'disabled'}>다른 아이에게도 담기${n?' '+n:''}</button>
     <button class="btn sm danger" data-act="prep-del" ${n?'':'disabled'}>${S.prepDelArmed?'정말 지울까요?':'지우기'}</button>
   </div>
   ${list.length?`<div class="list" style="margin-top:12px">${list.map(b=>`<div class="prow"><input type="checkbox" data-prepsel="${esc(b.id)}" ${S.prepSel.has(b.id)?'checked':''} aria-label="${esc(b.title)} 고르기"><div class="mini">${coverHTML(b)}</div><button class="t" data-act="open" data-id="${esc(b.id)}"><b>${esc(b.title)}</b><span>${esc(libLabel(b))}${b.callNo?` · <span class="mono">${esc(b.callNo)}</span>`:''}${b.availability?' · '+esc(b.availability):''}</span></button></div>`).join('')}</div>`
@@ -779,8 +808,29 @@ function pickView(){
 function pinBox(){return `<form class="box" id="pin-form" style="margin-top:16px;max-width:360px"><h3>부모 잠금 번호</h3><label class="f">${esc(memberOf(S.pinFor)?.name||'')} 프로필은 잠금 번호가 필요해요<input id="pin-in" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label><p class="err" id="pin-err" hidden>번호가 달라요.</p><div class="actions"><button class="btn primary" type="submit">확인</button><button class="btn" type="button" data-act="pin-cancel">취소</button></div></form>`}
 
 /* ---------- 시트(팝업) ---------- */
-function openSheet(html,mount){sheetRefresh=null;$('#sheet').innerHTML=html;$('#sheetWrap').hidden=false;document.body.style.overflow='hidden';$('#sheet').scrollTop=0;mount&&mount($('#sheet'))}
-function closeSheet(){sheetRefresh=null;$('#sheetWrap').hidden=true;$('#sheet').innerHTML='';document.body.style.overflow=''}
+/* 작성 중인 내용 보관: 사진 찍다가 앱이 다시 열려도 되살림 */
+const Draft={key:'gbs-draft',t:null,pending:null,
+  get(){try{return JSON.parse(localStorage.getItem(this.key)||'null')}catch(e){return null}},
+  put(d){this.pending=d;clearTimeout(this.t);this.t=setTimeout(()=>this.flush(),300)},
+  flush(){clearTimeout(this.t);if(!this.pending)return;try{localStorage.setItem(this.key,JSON.stringify(this.pending))}catch(e){}this.pending=null},
+  clear(){clearTimeout(this.t);this.pending=null;try{localStorage.removeItem(this.key)}catch(e){}}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)Draft.flush()});
+window.addEventListener('pagehide',()=>Draft.flush());
+const Last={key:'gbs-lastsheet',set(v){try{sessionStorage.setItem(this.key,JSON.stringify(v))}catch(e){}},get(){try{return JSON.parse(sessionStorage.getItem(this.key)||'null')}catch(e){return null}},clear(){try{sessionStorage.removeItem(this.key)}catch(e){}}};
+function formFields(root){const o={};root.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{if(el.type==='file'||el.id==='f-paste')return;o[el.id]=el.type==='checkbox'?el.checked:el.value});return o}
+function fillFields(root,o){Object.entries(o||{}).forEach(([k,v])=>{const el=root.querySelector('#'+CSS.escape(k));if(!el||el.disabled)return;if(el.type==='checkbox')el.checked=!!v;else el.value=v;el.dispatchEvent(new Event('change',{bubbles:true}))})}
+function restoreSession(){
+  const d=Draft.get();
+  if(d&&d.code===S.code&&d.me===S.me&&$('#sheetWrap').hidden){
+    if(d.tab&&d.tab!==S.tab){S.tab=d.tab;render()}
+    if(d.kind==='book'){openBook(d.id||null,d.preset||null,d);toast('작성하던 내용을 되살렸어요');return}
+    if(d.kind==='series'){openSeriesForm(null,d);toast('작성하던 내용을 되살렸어요');return}
+  }
+  const l=Last.get();
+  if(l&&l.code===S.code&&l.kind==='series'&&S.series.some(x=>x.id===l.id)&&$('#sheetWrap').hidden) openSeries(l.id,l.cur);
+}
+function openSheet(html,mount){sheetRefresh=null;Last.clear();$('#sheet').innerHTML=html;$('#sheetWrap').hidden=false;document.body.style.overflow='hidden';$('#sheet').scrollTop=0;mount&&mount($('#sheet'))}
+function closeSheet(){sheetRefresh=null;Draft.clear();Last.clear();$('#sheetWrap').hidden=true;$('#sheet').innerHTML='';document.body.style.overflow=''}
 let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
 
 const COVER_MAX=200;
@@ -791,12 +841,13 @@ function dataUrlToBlob(u){const [h,b]=u.split(',');const bin=atob(b);const a=new
 
 function libOptions(sel){return S.libs.map(l=>`<option value="${esc(l.id)}" ${l.id===sel?'selected':''}>${esc(l.name)} (${LIBTYPES[l.type]||'기타'})</option>`).join('')+`<option value="__new">+ 새 도서관 추가…</option>`}
 
-function openBook(id,preset){
+function openBook(id,preset,draft){
   const b=id?S.books.find(x=>x.id===id):null;
   if(id&&!b) return;
   const canEdit=!b||isParent()||b.memberId===S.me;
   const parent=isParent();
   let cover=b?safeImg(b.cover):'';let coverBlob=null;let rating=b?.rating||0;let status=b?.status||'want';
+  if(draft){if(draft.cover!==undefined)cover=safeImg(draft.cover);if(draft.rating!==undefined)rating=draft.rating;if(draft.status)status=draft.status;if(draft.targets)preset={...(preset||{}),memberIds:draft.targets}}
   const pm=preset?.memberIds||(preset?.memberId?[preset.memberId]:null);
   const targets=new Set(b?[b.memberId]:(pm?pm:(parent?(S.view!=='all'&&memberOf(S.view)?[S.view]:[]):[S.me])));
   const defaultLib=b?.libId||(preset?.libId&&S.libs.some(l=>l.id===preset.libId)?preset.libId:null)||(S.libs.find(l=>l.type!=='home')||S.libs[0])?.id||'__new';
@@ -806,6 +857,7 @@ function openBook(id,preset){
       ${!isHome(b)?(onLoan(b)?`${dueStamp(b)}<button class="btn sm" data-act="extend" data-id="${esc(b.id)}">반납일 +7일</button><button class="btn sm primary" data-act="return" data-id="${esc(b.id)}">반납했어요</button>`:`<button class="btn sm primary" data-act="loan-now" data-id="${esc(b.id)}">오늘 빌렸어요</button>`):''}
       ${b.status!=='done'?`<button class="btn sm" data-act="mark-done" data-id="${esc(b.id)}">다 읽었어요</button>`:''}
       ${b.status==='want'?`<button class="btn sm" data-act="mark-reading" data-id="${esc(b.id)}">읽기 시작</button>`:''}
+      ${parent?`<button class="btn sm" data-act="copy" data-id="${esc(b.id)}" style="background:var(--purple);color:var(--purple-ink)">다른 사람에게도 넣기</button>`:''}
       ${parent&&!isHome(b)&&!onLoan(b)&&b.status!=='done'?`<button class="btn sm" data-act="ask" data-id="${esc(b.memberId)}" data-book="${esc(b.id)}">빌려와 줘 문자</button>`:''}
     </div></div>`:'';
   const ro=canEdit?'':'disabled';
@@ -844,6 +896,7 @@ function openBook(id,preset){
   openSheet(html,root=>{
     if(!canEdit) return;
     const f=id=>root.querySelector('#'+id);
+    const saveDraft=()=>{if(!document.body.contains(f('book-form')))return;Draft.put({kind:'book',tab:S.tab,code:S.code,me:S.me,id:b?.id||null,preset:preset||null,fields:formFields(root),cover,rating,status,targets:[...targets]})};
     const syncLib=()=>{const v=f('f-lib').value;f('newlib').hidden=v!=='__new';const t=v==='__new'?f('f-libtype').value:(S.libs.find(l=>l.id===v)?.type);f('libfields').querySelectorAll('#f-loan,#loanrow').forEach(()=>{});f('f-loan').closest('label').hidden=t==='home';if(t==='home'){f('loanrow').hidden=true}else{f('loanrow').hidden=!f('f-loan').checked}};
     f('f-lib').addEventListener('change',syncLib);f('f-libtype').addEventListener('change',syncLib);syncLib();
     f('f-loan').addEventListener('change',()=>{f('loanrow').hidden=!f('f-loan').checked});
@@ -865,7 +918,7 @@ function openBook(id,preset){
     const runParse=()=>{const p=parseBookText(f('f-paste').value);const n=fill(p);f('parse-msg').textContent=n?`${n}개 칸을 채웠어요. 맞는지 확인해 주세요.`:'알아볼 수 있는 내용이 없어요. 직접 입력해 주세요.';
       if(p.library&&f('f-lib').value==='__new') f('parse-msg').textContent+=` '${p.library}'은(는) 저장할 때 도서관 목록에 추가돼요.`};
     f('do-parse').addEventListener('click',runParse);
-    const setCover=async file=>{try{const r=await compressImage(file);cover=r.data;coverBlob=r.blob;f('cv-prev').innerHTML=`<img src="${cover}" alt="표지">`;f('ai-cover').hidden=!S.sampleImg}catch(e){toast('사진을 읽지 못했어요.')}};
+    const setCover=async file=>{try{const r=await compressImage(file);cover=r.data;coverBlob=r.blob;setTimeout(saveDraft,0);f('cv-prev').innerHTML=`<img src="${cover}" alt="표지">`;f('ai-cover').hidden=!S.sampleImg}catch(e){toast('사진을 읽지 못했어요.')}};
     f('f-paste').addEventListener('paste',e=>{const file=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith('image/'));if(file){e.preventDefault();setCover(file);return}setTimeout(runParse,0)});
     f('f-cover').addEventListener('change',e=>{const file=e.target.files[0];if(file)setCover(file)});
     if(cover&&S.sampleImg) f('ai-cover').hidden=false;
@@ -885,6 +938,11 @@ function openBook(id,preset){
       }finally{f('ai-cover').disabled=false}
     });
     if(b){let armed=false;f('del-btn').addEventListener('click',async()=>{if(!armed){armed=true;f('del-btn').textContent='한 번 더 누르면 지워져요';return}if(await write(()=>Store.del(base()+'/books/'+b.id),'지웠어요'))closeSheet()})}
+    if(draft){fillFields(root,draft.fields);syncLib();f('loanrow').hidden=!f('f-loan').checked||f('f-loan').closest('label').hidden;f('donerow').hidden=status!=='done';
+      f('f-status').querySelectorAll('[data-st]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.st===status));f('f-stars').querySelectorAll('[data-star]').forEach(y=>y.classList.toggle('on',+y.dataset.star<=rating));
+      if(cover)f('cv-prev').innerHTML=`<img src="${cover}" alt="표지">`;f('book-form').insertAdjacentHTML('afterbegin','<p class="draft-note">사진을 고르다 앱이 다시 열려서, 쓰던 내용을 되살렸어요. 표지 사진만 다시 골라 주세요.</p>')}
+    f('book-form').addEventListener('input',saveDraft);f('book-form').addEventListener('change',saveDraft);f('book-form').addEventListener('click',()=>setTimeout(saveDraft,0));
+    f('f-cover').addEventListener('click',()=>{saveDraft();Draft.flush()});
     f('book-form').addEventListener('submit',async e=>{
       e.preventDefault();const err=f('f-err');err.hidden=true;
       const title=f('f-title').value.trim();if(!title){err.textContent='제목을 적어 주세요.';err.hidden=false;f('f-title').focus();return}
@@ -916,6 +974,7 @@ function openBook(id,preset){
         ok=await write(()=>Store.set(base()+'/books/'+id2,full))&&ok;
       }
       if(ok){
+        Draft.clear();
         const where=data.hidden?'담아두기에':'책장에';
         toast(b?'저장했어요':who.length>1?`${who.length}명의 ${where} 넣었어요`:`${where} 넣었어요`);
         if(more) openBook(null,{memberIds:who,hidden:data.hidden,libId}); else closeSheet();
@@ -991,10 +1050,9 @@ async function ensureHomeLib(){
   let l=S.libs.find(x=>x.type==='home');if(l)return l.id;
   const id=uid();await write(()=>Store.set(base()+'/libs/'+id,{name:'우리집 책장',type:'home',createdAt:new Date().toISOString()}));return id;
 }
-function openSeriesForm(id){
+function openSeriesForm(id,draft){
   const x=id?S.series.find(s=>s.id===id):null;
-  let cover=x?safeImg(x.cover):'';
-  const who=new Set(x?(x.memberIds||[]):kids().map(m=>m.id));
+  const who=new Set(draft?.who||(x?(x.memberIds||[]):kids().map(m=>m.id)));
   openSheet(`<div class="sheet-h"><h2>${x?'전집 고치기':'전집 추가'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
   <form class="form" id="s-form">
     <label class="f">전집 이름 *<input id="s-name" value="${esc(x?.name||'')}" placeholder="예: 우리집 명작동화" required></label>
@@ -1005,7 +1063,10 @@ function openSeriesForm(id){
     <div class="sheet-foot">${x?`<button type="button" class="btn danger" id="s-del">전집 지우기</button><span style="flex:1"></span>`:''}<button type="button" class="btn" data-act="close-sheet">닫기</button><button type="submit" class="btn primary" id="s-save">저장</button></div>
   </form>`,root=>{
     const f=k=>root.querySelector('#'+k);
-    root.querySelectorAll('[data-w]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.w;who.has(k)?who.delete(k):who.add(k);el.setAttribute('aria-pressed',who.has(k))}));
+    const saveDraft=()=>{if(!x&&document.body.contains(f('s-form')))Draft.put({kind:'series',tab:S.tab,code:S.code,me:S.me,fields:formFields(root),who:[...who]})};
+    root.querySelectorAll('[data-w]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.w;who.has(k)?who.delete(k):who.add(k);el.setAttribute('aria-pressed',who.has(k));saveDraft()}));
+    if(draft)fillFields(root,draft.fields);
+    f('s-form').addEventListener('input',saveDraft);
     if(x){let armed=false;f('s-del').addEventListener('click',async()=>{const bs=S.books.filter(b=>b.seriesId===x.id);if(!armed){armed=true;f('s-del').textContent=`책 ${bs.length}권까지 지워져요. 한 번 더 누르기`;return}
       f('s-prog').textContent='지우는 중이에요…';for(let i=0;i<bs.length;i+=8){await Promise.all(bs.slice(i,i+8).map(b=>write(()=>Store.del(base()+'/books/'+b.id))))}
       if(await write(()=>Store.del(base()+'/series/'+x.id),'전집을 지웠어요'))closeSheet()})}
@@ -1019,6 +1080,7 @@ function openSeriesForm(id){
       const libId=await ensureHomeLib();const sid=uid();
       const sx={name,publisher:f('s-pub').value.trim(),cover:'',memberIds:[...who],libId,createdAt:new Date().toISOString()};
       if(!await write(()=>Store.set(base()+'/series/'+sid,sx))){f('s-save').disabled=false;return}
+      Draft.clear();
       const ok=await addSeriesBooks({...sx,id:sid},items,[...who],(d,t)=>f('s-prog').textContent=`${d} / ${t}권 넣는 중…`);
       toast(ok?`'${name}' ${items.length}권을 넣었어요`:'일부 책을 넣지 못했어요. 전집을 열어 확인해 주세요.');
       openSeries(sid);
@@ -1035,7 +1097,7 @@ function openSeries(id,forMember){
     <div class="shead"><div class="cv" id="sr-cv">${mosaic(x)}</div>
       <div style="flex:1;min-width:0"><p class="note">${esc(x.publisher||'우리집 전집')}</p><div id="sr-prog" style="font-family:var(--f-disp);font-size:26px"></div><div class="bar"><i id="sr-bar" style="width:0;background:var(--purple-ink)"></i></div></div></div>
     ${parent&&mids.length>1?`<div class="subtabs" id="sr-tabs">${mids.map(mid=>{const m=memberOf(mid);return `<button type="button" class="chip" data-m="${esc(mid)}" aria-pressed="${mid===cur}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`}).join('')}</div>`:''}
-    <p class="note">왼쪽 사진 칸을 누르면 그 책 표지를 찍어 넣을 수 있어요. 다 읽은 책은 오른쪽 칸을 누르세요.</p>
+    <p class="note">${parent?'왼쪽 사진 칸을 눌러 표지를 고르면 바로 저장돼요(저장 버튼이 따로 없어요). ':''}오른쪽 버튼을 누를 때마다 읽기 전 → 읽는 중 → 다 읽음으로 바뀌어요.</p>
     <div class="srows" id="sr-list"></div>
     ${parent?`<div class="box"><h3>책 더 넣기</h3><textarea class="inp" id="sr-more" rows="3" placeholder="한 줄에 한 권씩"></textarea><div class="actions"><button type="button" class="btn sm primary" id="sr-add">추가</button><button type="button" class="btn sm" id="sr-edit">전집 이름 고치기</button><span class="note" id="sr-msg"></span></div></div>`:''}
   </div>`,root=>{
@@ -1044,23 +1106,66 @@ function openSeries(id,forMember){
       const bs=S.books.filter(b=>b.seriesId===x.id&&b.memberId===cur).sort((a,b)=>(a.seriesNo||0)-(b.seriesNo||0));
       const d=bs.filter(b=>b.status==='done').length;
       f('sr-cv').innerHTML=mosaic(x);f('sr-prog').textContent=`${d} / ${bs.length}권`;f('sr-bar').style.width=(bs.length?Math.round(d/bs.length*100):0)+'%';
-      f('sr-list').innerHTML=bs.length?bs.map(b=>`<div class="srow ${b.status==='done'?'done':''}"><span class="no">${esc(b.seriesNo||'')}</span>${parent?`<label class="rcov" aria-label="${esc(b.title)} 표지 넣기">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.camera}<input type="file" accept="image/*" data-rcover="${esc(b.id)}"></label>`:`<span class="rcov">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.book}</span>`}<button class="t" data-act="open" data-id="${esc(b.id)}">${esc(b.title)}${b.rating?` <span style="color:#E8B100">${'★'.repeat(Math.min(5,+b.rating||0))}</span>`:''}</button><button class="chk ${b.status==='done'?'on':''}" data-sdone="${esc(b.id)}" aria-label="${esc(b.title)} 다 읽음" aria-pressed="${b.status==='done'}">${ICON.check}</button></div>`).join(''):'<p class="note">아직 책이 없어요.</p>';
+      f('sr-list').innerHTML=bs.length?bs.map(b=>`<div class="srow ${b.status==='done'?'done':''}"><span class="no">${esc(b.seriesNo||'')}</span>${parent?`<label class="rcov" aria-label="${esc(b.title)} 표지 넣기">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.camera}<input type="file" accept="image/*" data-rcover="${esc(b.id)}"></label>`:`<span class="rcov">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.book}</span>`}<button class="t" data-act="open" data-id="${esc(b.id)}">${esc(b.title)}${b.rating?` <span style="color:#E8B100">${'★'.repeat(Math.min(5,+b.rating||0))}</span>`:''}</button><button class="st-btn ${b.status==='done'?'done':b.status==='reading'?'reading':''}" data-scycle="${esc(b.id)}" aria-label="${esc(b.title)} 읽기 상태 바꾸기">${b.status==='done'?'✓ 다 읽음':b.status==='reading'?'읽는 중':'읽기 전'}</button></div>`).join(''):'<p class="note">아직 책이 없어요.</p>';
     };
+    const remember=()=>Last.set({kind:'series',code:S.code,id:x.id,cur});remember();
+    root.addEventListener('click',e=>{if(e.target.closest('[data-rcover]'))remember()});
     sheetRefresh=()=>{if(!S.series.some(s=>s.id===x.id)){closeSheet();return}draw()};
     draw();
-    f('sr-tabs')?.addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;cur=b.dataset.m;f('sr-tabs').querySelectorAll('[data-m]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.m===cur));draw()});
-    f('sr-list').addEventListener('click',async e=>{const c=e.target.closest('[data-sdone]');if(!c)return;const b=S.books.find(y=>y.id===c.dataset.sdone);if(!b)return;
+    f('sr-tabs')?.addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;cur=b.dataset.m;f('sr-tabs').querySelectorAll('[data-m]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.m===cur));remember();draw()});
+    f('sr-list').addEventListener('click',async e=>{const c=e.target.closest('[data-scycle]');if(!c)return;const b=S.books.find(y=>y.id===c.dataset.scycle);if(!b)return;
       if(!parent&&b.memberId!==S.me)return;
-      const on=b.status!=='done';const before=doneCount(b.memberId);
-      c.classList.toggle('on',on);
-      if(await write(()=>Store.update(base()+'/books/'+b.id,on?{status:'done',doneAt:today(),updatedAt:new Date().toISOString()}:{status:'want',doneAt:'',updatedAt:new Date().toISOString()}))){if(on)badgeToast(b.memberId,before,before+1)}
+      const next=b.status==='done'?'want':b.status==='reading'?'done':'reading';const before=doneCount(b.memberId);
+      c.className='st-btn '+(next==='want'?'':next);c.textContent=next==='done'?'✓ 다 읽음':next==='reading'?'읽는 중':'읽기 전';
+      const now=new Date().toISOString();
+      if(await write(()=>Store.update(base()+'/books/'+b.id,next==='done'?{status:'done',doneAt:today(),updatedAt:now}:{status:next,doneAt:'',updatedAt:now}))){if(next==='done')badgeToast(b.memberId,before,before+1)}
     });
     f('sr-list').addEventListener('change',async e=>{const inp=e.target.closest('[data-rcover]');if(!inp||!inp.files[0])return;const b=S.books.find(y=>y.id===inp.dataset.rcover);if(!b)return;
-      try{const r=await compressImage(inp.files[0]);const same=S.books.filter(y=>y.seriesId===x.id&&y.seriesNo===b.seriesNo);
-        for(const y of same){await write(()=>Store.update(base()+'/books/'+y.id,{cover:r.data,updatedAt:new Date().toISOString()}))}toast('표지를 넣었어요')}catch(er){toast('사진을 읽지 못했어요.')}});
+      const lab=inp.closest('.rcov');if(lab)lab.style.opacity='.5';
+      try{const r=await compressImage(inp.files[0]);if(lab){lab.style.opacity='';const im=lab.querySelector('img');if(im)im.src=r.data;else lab.insertAdjacentHTML('afterbegin',`<img src="${r.data}" alt="">`);lab.querySelector('svg')?.remove()}const same=S.books.filter(y=>y.seriesId===x.id&&y.seriesNo===b.seriesNo);
+        for(const y of same){await write(()=>Store.update(base()+'/books/'+y.id,{cover:r.data,updatedAt:new Date().toISOString()}))}toast('표지를 저장했어요')}catch(er){if(lab)lab.style.opacity='';toast('사진을 읽지 못했어요.')}});
     f('sr-add')?.addEventListener('click',async()=>{const last=Math.max(0,...S.books.filter(b=>b.seriesId===x.id).map(b=>+b.seriesNo||0));const items=parseTitles(f('sr-more').value,last+1);if(!items.length)return;
       f('sr-add').disabled=true;const ok=await addSeriesBooks(x,items,mids,(d,t)=>f('sr-msg').textContent=`${d} / ${t}`);f('sr-add').disabled=false;f('sr-more').value='';f('sr-msg').textContent=ok?`${items.length}권을 더 넣었어요`:'일부를 넣지 못했어요'});
     f('sr-edit')?.addEventListener('click',()=>openSeriesForm(x.id));
+  });
+}
+
+/* 다른 사람에게도 넣기 */
+const normT=t=>String(t||'').replace(/\s+/g,'').toLowerCase();
+function openCopy(ids){
+  const src=ids.map(id=>S.books.find(b=>b.id===id)).filter(Boolean);if(!src.length)return;
+  const owners=new Set(src.map(b=>b.memberId));
+  const cands=S.members.filter(m=>!(owners.size===1&&owners.has(m.id)));
+  const tg=new Set(cands.filter(m=>m.role==='kid').slice(0,1).map(m=>m.id));
+  const hid=src.every(b=>b.hidden);
+  openSheet(`<div class="sheet-h"><h2>다른 사람에게도 넣기</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form">
+    <p class="note">${src.length===1?`'${esc(src[0].title)}'`:`책 ${src.length}권`}을 똑같이 넣어요. 읽은 기록·별점·대출은 빼고 책 정보만 복사해요.</p>
+    <div class="f">누구에게 넣을까요?<div class="subtabs" id="cp-who">${cands.map(m=>`<button type="button" class="chip" data-w="${esc(m.id)}" aria-pressed="${tg.has(m.id)}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`).join('')}</div></div>
+    <label class="check" style="background:var(--yellow);border-radius:14px;padding:10px 12px"><input type="checkbox" id="cp-hidden" ${hid?'checked':''}> 담아두기로 넣기 (아이 화면에는 아직 안 보여요)</label>
+    <p class="note" id="cp-msg"></p>
+    <div class="sheet-foot"><button type="button" class="btn" data-act="close-sheet">닫기</button><button type="button" class="btn primary" id="cp-go">넣기</button></div>
+  </div>`,root=>{
+    const f=k=>root.querySelector('#'+k);
+    root.querySelectorAll('[data-w]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.w;tg.has(k)?tg.delete(k):tg.add(k);el.setAttribute('aria-pressed',tg.has(k))}));
+    f('cp-go').addEventListener('click',async()=>{
+      if(!tg.size){f('cp-msg').textContent='넣을 사람을 골라 주세요.';return}
+      f('cp-go').disabled=true;const now=new Date().toISOString();let made=0,skip=0;
+      for(const mid of tg){
+        for(const b of src){
+          if(b.memberId===mid){skip++;continue}
+          const dup=S.books.some(x=>x.memberId===mid&&normT(x.title)===normT(b.title)&&(x.seriesId||'')===(b.seriesId||'')&&(b.seriesId||(x.libId||'')===(b.libId||'')));
+          if(dup){skip++;continue}
+          const c=clone(b);delete c.id;
+          Object.assign(c,{memberId:mid,status:'want',doneAt:'',rating:0,memo:'',loan:null,ask:null,cheers:{},hidden:f('cp-hidden').checked,createdAt:now,updatedAt:now,addedBy:S.me});
+          if(await write(()=>Store.set(base()+'/books/'+uid(),c)))made++;
+          const sx=seriesOf(b);if(sx&&!(sx.memberIds||[]).includes(mid)){sx.memberIds=[...(sx.memberIds||[]),mid];await write(()=>Store.update(base()+'/series/'+sx.id,{memberIds:sx.memberIds}))}
+        }
+      }
+      const names=[...tg].map(id=>memberOf(id)?.name).join(', ');
+      toast(`${names}에게 ${made}권 넣었어요${skip?` (이미 있는 ${skip}권은 건너뜀)`:''}`);
+      S.prepSel.clear();closeSheet();render();
+    });
   });
 }
 
@@ -1232,6 +1337,8 @@ const ACT={
   'prep-add':()=>openBook(null,{memberIds:S.prepFor?[S.prepFor]:[],hidden:true}),
   'prep-all':()=>{const list=S.books.filter(b=>b.hidden&&b.memberId===S.prepFor);if(S.prepSel.size===list.length)S.prepSel.clear();else list.forEach(b=>S.prepSel.add(b.id));render()},
   'prep-send':async()=>{const ids=[...S.prepSel];if(!ids.length)return;const now=new Date().toISOString();let n=0;for(const id of ids){if(await write(()=>Store.update(base()+'/books/'+id,{hidden:false,updatedAt:now})))n++}S.prepSel.clear();toast(`${n}권을 ${memberOf(S.prepFor)?.name||''} 책장으로 보냈어요`);render()},
+  'prep-copy':()=>{const ids=[...S.prepSel];if(ids.length)openCopy(ids)},
+  copy:el=>openCopy([el.dataset.id]),
   'prep-ask':()=>{const ids=[...S.prepSel];if(!ids.length)return;openAsk(S.prepFor,ids)},
   'prep-del':async()=>{const ids=[...S.prepSel];if(!ids.length)return;if(!S.prepDelArmed){S.prepDelArmed=true;render();return}S.prepDelArmed=false;for(const id of ids){await write(()=>Store.del(base()+'/books/'+id))}S.prepSel.clear();toast(`${ids.length}권을 지웠어요`);render()},
   'mark-reading':el=>bookUpdate(el.dataset.id,{status:'reading'},'읽기 시작!'),
