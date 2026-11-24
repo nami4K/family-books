@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="책도장">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>가족 책도장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>window.FB_SDK_BASE="./vendor/firebase/";</script>
+<script src="firebase-config.js?v=d973db2d"></script>
+</head>
+<body>
+<style>
+/* Layout: 앱 화면 — 흰 바탕, 파스텔 아이콘 버블(핑크·하늘·보라·노랑), 둥근 카드, 하단 탭바 */
+:root{
+  --bg:#FFFFFF; --surface:#F7F6FB; --card:#FFFFFF; --ink:#2A2838; --muted:#8E8BA3; --line:#EEECF4;
+  --pink:#FFDCE8; --pink-ink:#D6457B; --sky:#D7EEFF; --sky-ink:#2C7CC4;
+  --purple:#EAE2FF; --purple-ink:#6A4FD6; --yellow:#FFF1C1; --yellow-ink:#9C7100;
+  --accent:#7A5FF0; --accent-ink:#FFFFFF; --danger:#E4466F;
+  --shadow:0 1px 3px rgba(70,50,140,.05),0 8px 22px rgba(70,50,140,.07);
+  --f-disp:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono","Noto Sans KR",ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-disp);font-weight:400;margin:0;text-wrap:balance}
+.mono{font-family:var(--f-mono);font-size:.92em}
+.muted{color:var(--muted)}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 150px}
+
+/* 아이콘 버블 */
+.ib{width:36px;height:36px;border-radius:12px;display:inline-grid;place-items:center;flex:none;background:var(--b,var(--purple));color:var(--bi,var(--purple-ink))}
+.ib svg{width:21px;height:21px}
+.ib.pink{--b:var(--pink);--bi:var(--pink-ink)} .ib.sky{--b:var(--sky);--bi:var(--sky-ink)} .ib.purple{--b:var(--purple);--bi:var(--purple-ink)} .ib.yellow{--b:var(--yellow);--bi:var(--yellow-ink)}
+.ib.lg{width:56px;height:56px;border-radius:18px}.ib.lg svg{width:32px;height:32px}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.top-in{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:12px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.brand .tx{display:grid;min-width:0;line-height:1.2}
+.logo{font-family:var(--f-disp);font-size:22px;color:var(--ink);white-space:nowrap}
+.famname{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me-chip{display:flex;align-items:center;gap:7px;border:0;background:var(--surface);border-radius:999px;padding:4px 12px 4px 4px;font-weight:700;font-size:14px}
+.me-chip small{color:var(--muted);font-weight:400;font-size:12px}
+.dot{width:26px;height:26px;border-radius:50%;background:var(--c,#E8E2FF);display:inline-grid;place-items:center;color:var(--ci,#5a4ac0);font-family:var(--f-disp);font-size:13px;flex:none}
+.icon-btn{width:40px;height:40px;border-radius:14px;border:0;background:var(--surface);display:grid;place-items:center;flex:none;color:var(--ink);font-size:20px}
+.icon-btn svg{width:20px;height:20px}
+
+/* 가족 아바타 줄 */
+.viewbar{display:flex;gap:14px;overflow-x:auto;padding-block:8px 6px;scrollbar-width:none}
+.viewbar::-webkit-scrollbar{display:none}
+.av-chip{border:0;background:none;display:grid;justify-items:center;gap:4px;padding:0;font-size:12.5px;color:var(--muted);flex:none;min-width:56px}
+.av-chip .av{width:52px;height:52px;border-radius:50%;background:var(--c,var(--purple));color:var(--ci,var(--purple-ink));display:grid;place-items:center;font-family:var(--f-disp);font-size:21px;box-shadow:0 0 0 3px #fff,0 0 0 3px transparent;transition:box-shadow .15s}
+.av-chip .av svg{width:26px;height:26px}
+.av-chip[aria-pressed="true"]{color:var(--ink);font-weight:700}
+.av-chip[aria-pressed="true"] .av{box-shadow:0 0 0 3px #fff,0 0 0 5.5px var(--ci,var(--accent))}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 13px 6px 7px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:14px}
+.chip .dot{width:20px;height:20px;font-size:11px}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--purple);color:var(--purple-ink);font-weight:700}
+
+/* sections */
+.sec{margin-top:20px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.sec-h h2,.sec-t{font-size:20px}
+.sec-title{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sec-title h2{font-size:19px}
+
+/* 이번 달 카드 */
+.hero-card{margin-top:10px;border-radius:24px;padding:18px 18px 16px;background:linear-gradient(135deg,var(--pink) 0%,var(--purple) 55%,var(--sky) 100%);display:flex;gap:14px;align-items:center}
+.hero-card .k{font-size:13.5px;color:#5b4f7a;font-weight:500}
+.hero-card .v{font-family:var(--f-disp);font-size:40px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hero-card .v small{font-size:18px;margin-left:2px}
+.hero-card .s{font-size:13px;color:#5b4f7a}
+.hero-card .grow{flex:1;min-width:0}
+.hero-card .bar{background:rgba(255,255,255,.7)}
+.hero-card .bar i{background:var(--accent)}
+.hero-card .ib{background:#fff}
+
+/* 부탁 카드 */
+.asks{background:var(--yellow);border-radius:22px;padding:16px;display:grid;gap:10px}
+.asks .sec-title{margin:0}
+.ask-row{display:flex;gap:12px;align-items:center;background:#fff;border-radius:16px;padding:12px}
+.ask-row .t{flex:1;min-width:0}
+.ask-row .t b{display:block}
+.ask-row .t span{font-size:13px;color:var(--muted)}
+.btn-dark{background:var(--yellow-ink);color:#fff;border:0;border-radius:12px;padding:9px 13px;font-weight:700;white-space:nowrap}
+
+/* 대출 중 */
+.loan{background:#fff;border-radius:22px;box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--line)}
+.loan-toggle{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:14px 16px;text-align:left}
+.loan-toggle h2{font-size:19px}
+.loan-toggle .cnt{font-family:var(--f-disp);background:var(--sky);color:var(--sky-ink);border-radius:999px;min-width:28px;text-align:center;padding:1px 9px;font-size:16px}
+.loan-toggle .hint{flex:1;color:var(--muted);font-size:13px;text-align:right}
+.loan-toggle .chev{transition:transform .2s;color:var(--muted)}
+.loan-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.loan-body{padding:0 10px 10px;display:grid;gap:8px}
+.loan-head{display:none}
+.loan-row{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px;background:var(--surface);border-radius:16px}
+.loan-row .mini{width:46px;height:62px;border-radius:8px;overflow:hidden}
+.loan-row .t{min-width:0}
+.loan-row .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loan-row .t span{font-size:12.5px;color:var(--muted)}
+.loan-row .acts{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.loan-row .acts div{display:flex;gap:6px}
+.loan-empty{padding:4px 8px 8px;color:var(--muted);font-size:14px}
+
+/* 반납 배지 */
+.stamp{display:inline-block;border-radius:999px;padding:2px 10px;white-space:nowrap;font-size:12.5px;font-weight:700;background:var(--sky);color:var(--sky-ink)}
+.stamp.due-soon{background:var(--yellow);color:var(--yellow-ink)}
+.stamp.over{background:var(--pink);color:var(--danger)}
+.stamp.read{background:var(--pink);color:var(--pink-ink)}
+
+/* 필터 */
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;background:var(--surface);border-radius:14px;padding:4px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;border-radius:10px;padding:6px 12px;font-size:14px;color:var(--muted);font-weight:500}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);font-weight:700;box-shadow:0 1px 4px rgba(70,50,140,.12)}
+.search{flex:1;min-width:150px;border:0;background:var(--surface);border-radius:14px;padding:10px 14px;font-size:16px}
+.search::placeholder{color:var(--muted)}
+
+/* 책 카드 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px 14px;margin-top:16px}
+.card{display:flex;flex-direction:column;text-align:left;background:none;border:0;padding:0;position:relative;gap:8px}
+.cover{aspect-ratio:3/4;width:100%;max-width:100%;background:var(--surface);position:relative;overflow:hidden;border-radius:18px;box-shadow:var(--shadow)}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.ph{width:100%;height:100%;background:var(--c,var(--purple));display:flex;flex-direction:column;justify-content:space-between;padding:12px;color:var(--ci,var(--purple-ink));font-family:var(--f-disp);font-size:17px;line-height:1.25}
+.ph svg{width:28px;height:28px;opacity:.8}
+.ph span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
+.card .meta{padding:0 4px;display:grid;gap:3px;min-width:0}
+.card .meta b{font-weight:700;font-size:14.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card .meta span{font-size:12.5px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.card .tag{position:absolute;left:8px;top:8px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.92);color:var(--ink);font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px 2px 3px}
+.card .tag .dot{width:18px;height:18px;font-size:10px}
+.card .cover .stamp{position:absolute;right:8px;top:8px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.card .ph{justify-content:flex-end}
+.card .ph svg{display:none}
+.loan-row .btn{background:#fff}
+.pill{display:inline-block;font-size:12px;border-radius:999px;padding:1px 9px;font-weight:700;justify-self:start;background:var(--sky);color:var(--sky-ink)}
+.pill.reading{background:var(--yellow);color:var(--yellow-ink)}
+.pill.done{background:var(--pink);color:var(--pink-ink)}
+.empty{background:var(--surface);border-radius:22px;padding:30px 18px;text-align:center;color:var(--muted);margin-top:16px;display:grid;gap:10px;justify-items:center}
+.empty b{color:var(--ink);font-size:16px}
+
+/* 버튼 */
+.btn{border:0;background:var(--surface);border-radius:14px;padding:10px 16px;font-weight:700;display:inline-flex;align-items:center;gap:6px;justify-content:center;text-decoration:none;color:var(--ink);font-size:14.5px}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:11px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:var(--pink);color:var(--danger)}
+.btn.ghost{background:none;color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.fab{position:fixed;z-index:15;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.fab .btn{box-shadow:0 8px 22px rgba(90,60,200,.25);padding:14px 20px;border-radius:999px;font-size:15px}
+.fab .btn:not(.primary){background:var(--yellow);color:var(--yellow-ink);box-shadow:0 8px 22px rgba(160,120,0,.18)}
+
+/* 탭바 */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabbar-in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(var(--n,3),1fr)}
+.tabbar button{border:0;background:none;padding:8px 0 10px;display:grid;justify-items:center;gap:3px;color:var(--muted);font-size:12px;font-weight:500}
+.tabbar .ib{width:48px;height:32px;border-radius:999px;background:transparent;color:var(--muted)}
+.tabbar .ib svg{width:23px;height:23px}
+.tabbar button[aria-current="page"]{color:var(--ink);font-weight:700}
+.tabbar button[aria-current="page"] .ib{background:var(--b);color:var(--bi)}
+
+/* 달력 */
+.cal-nav{display:flex;align-items:center;gap:10px}
+.cal-nav h2{font-size:22px;min-width:130px;text-align:center;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.stat{border-radius:20px;padding:14px;background:var(--surface)}
+.stat:nth-child(1){background:var(--pink)}.stat:nth-child(2){background:var(--sky)}.stat:nth-child(3){background:var(--yellow)}
+.stat .k{font-size:12.5px;color:#5f5a74;font-weight:500}
+.stat .v{font-family:var(--f-disp);font-size:30px;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:15px;margin-left:2px}
+.bar{height:9px;border-radius:99px;background:#EFEDF6;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--c,var(--accent));border-radius:99px}
+.stat .bar{background:rgba(255,255,255,.75)}
+.stat .bar i{background:var(--pink-ink)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:16px;background:#fff;border-radius:22px;padding:10px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.cal .dow{text-align:center;font-size:12px;color:var(--muted);padding-block:4px;font-weight:700}
+.cal .dow:first-child{color:var(--pink-ink)}
+.day{min-height:70px;background:none;border:0;border-radius:12px;padding:4px;display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0;align-items:stretch}
+.day.blank{pointer-events:none}
+.day .n{font-size:12.5px;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:2px;align-items:center}
+.day.today .n span{background:var(--accent);color:#fff;border-radius:999px;padding:0 7px;font-weight:700}
+.day .due{width:7px;height:7px;border-radius:50%;background:var(--danger);font-size:0}
+.day .covers{display:flex;flex-wrap:wrap;gap:2px}
+.day .covers i{width:18px;height:24px;border-radius:4px;background:var(--c,#ddd) center/cover no-repeat;display:block}
+.day .more{font-size:11px;color:var(--muted)}
+.day.has{background:var(--pink)}
+.day[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.list{display:grid;gap:8px;margin-top:10px}
+.li{display:flex;align-items:center;gap:12px;background:var(--surface);border:0;border-radius:16px;padding:10px 12px;text-align:left;width:100%}
+.li .mini{width:38px;height:52px;border-radius:7px;overflow:hidden;flex:none}
+.mini img{width:100%;height:100%;object-fit:cover;display:block}
+.mini .ph{font-size:8px;padding:4px}
+.mini .ph svg{width:12px;height:12px}
+.li .t{flex:1;min-width:0}
+.li .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .t span{font-size:13px;color:var(--muted)}
+
+/* 가족 */
+.rank{display:grid;gap:10px;margin-top:14px}
+.rk{display:grid;grid-template-columns:30px 48px minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:20px;padding:12px 14px}
+.rk .pos{font-family:var(--f-disp);font-size:19px;color:var(--muted);text-align:center;display:grid;place-items:center}
+.rk .pos svg{width:28px;height:28px}
+.rk .av{width:48px;height:48px;border-radius:50%;background:var(--c);color:var(--ci);display:grid;place-items:center;font-family:var(--f-disp);font-size:20px}
+.rk .who{display:flex;align-items:baseline;gap:6px;font-weight:700}
+.rk .who small{font-weight:400;color:var(--muted);font-size:12px}
+.rk .bar i{background:var(--ci)}
+.rk .num{font-family:var(--f-disp);font-size:28px;font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+.rk .num small{font-size:12px;color:var(--muted);display:block;font-family:var(--f-body);margin-top:4px}
+.feed{display:grid;gap:8px;margin-top:10px}
+.cheer{border:0;background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;display:inline-flex;gap:4px;align-items:center;white-space:nowrap;color:var(--pink-ink);font-weight:700;box-shadow:0 1px 4px rgba(70,50,140,.1)}
+.cheer[aria-pressed="true"]{background:var(--pink-ink);color:#fff}
+.codebox{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--purple);border-radius:20px;padding:14px 16px;margin-top:20px}
+.codebox .code{font-family:var(--f-mono);font-size:22px;letter-spacing:.14em;color:var(--purple-ink)}
+.codebox .btn{background:#fff}
+
+/* 시트 */
+#sheetWrap{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.scrim{position:absolute;inset:0;background:rgba(40,30,70,.35)}
+.sheet{position:relative;background:#fff;width:100%;max-width:600px;max-height:92vh;max-height:92dvh;overflow:auto;border-radius:28px 28px 0 0;padding:10px max(18px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));box-shadow:0 -10px 40px rgba(40,30,70,.2)}
+.sheet::before{content:"";display:block;width:42px;height:5px;border-radius:9px;background:#E2DFEC;margin:0 auto 12px}
+@media (min-width:700px){#sheetWrap{align-items:center}.sheet{border-radius:28px;padding:14px 26px 24px}}
+.sheet-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet-h h2{flex:1;font-size:23px}
+.form{display:grid;gap:12px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.row2.stack{grid-template-columns:1fr}}
+label.f,.f{display:grid;gap:5px;font-size:13px;color:var(--muted);min-width:0;font-weight:500}
+.f input,.f select,.f textarea,.inp{width:100%;border:1.5px solid transparent;background:var(--surface);border-radius:14px;padding:10px 12px;font-size:16px;color:var(--ink);min-width:0;font-weight:400}
+.f input:focus,.f select:focus,.f textarea:focus,.inp:focus{border-color:var(--accent);background:#fff;outline:none}
+.f textarea{resize:vertical}
+.paste{background:var(--sky);border-radius:20px;padding:14px;display:grid;gap:8px}
+.paste .ttl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px}
+.paste .ttl .ib{width:30px;height:30px;border-radius:10px;background:#fff}
+.paste .ttl .ib svg{width:18px;height:18px}
+.paste textarea{min-height:84px;font-family:var(--f-mono);font-size:13.5px;width:100%;border:0;background:#fff;border-radius:14px;padding:10px 12px;resize:vertical}
+.paste p{margin:0;font-size:13px;color:#4d6a86}
+.cover-pick{display:flex;gap:14px;align-items:center}
+.cover-pick .prev{width:86px;height:114px;border-radius:14px;overflow:hidden;background:var(--pink);flex:none;display:grid;place-items:center;color:var(--pink-ink);font-size:12px;text-align:center;font-weight:700}
+.cover-pick .prev img{width:100%;height:100%;object-fit:cover}
+.cover-pick .btns{display:grid;gap:8px;justify-items:start}
+.file-btn{position:relative;overflow:hidden;background:var(--pink)!important;color:var(--pink-ink)!important}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.box{background:var(--surface);border-radius:20px;padding:14px;display:grid;gap:10px}
+.box h3{font-size:17px}
+.box .f input,.box .f select,.box .f textarea,.box .inp{background:#fff}
+.box .seg{background:#fff}
+.box .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.check{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);font-weight:500}
+.check input{width:21px;height:21px;accent-color:var(--accent)}
+.stars{display:flex;gap:2px}
+.stars button{border:0;background:none;font-size:26px;line-height:1;padding:2px;color:#E3E0EC}
+.stars button.on{color:#FFC93C}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sheet-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px;position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom,0px));background:#fff;padding-block:12px}
+.note{font-size:13px;color:var(--muted);margin:0}
+.err{color:var(--danger);font-size:13px;margin:0;font-weight:500}
+.mrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.mrow:last-child{border-bottom:0}
+.mrow .t{flex:1;min-width:0}
+.mrow .t span{font-size:13px;color:var(--muted)}
+.mrow .dot{width:34px;height:34px;font-size:15px}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatches button{width:34px;height:34px;border-radius:50%;border:0;background:var(--c);box-shadow:0 0 0 3px #fff,0 0 0 3px transparent}
+.swatches button[aria-pressed="true"]{box-shadow:0 0 0 3px #fff,0 0 0 5.5px var(--accent)}
+.askbox textarea{min-height:170px;font-size:15px}
+
+/* 처음 화면 */
+.hero{padding-block:40px 6px;display:grid;gap:12px;justify-items:start}
+.hero h1{font-size:34px}
+.hero p{margin:0;color:var(--muted);max-width:34em}
+.ob{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));margin-top:18px}
+.ob .box{padding:18px}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:18px}
+.pick button{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px 10px;display:grid;justify-items:center;gap:8px;box-shadow:var(--shadow)}
+.pick .dot{width:60px;height:60px;font-size:25px}
+.pick b{font-size:17px}
+.pick small{color:var(--muted)}
+.banner{background:var(--yellow);border-radius:14px;padding:10px 14px;font-size:13px;margin-top:8px;color:#6b5200}
+.loading{padding:60px 0;text-align:center;color:var(--muted)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 22px rgba(0,0,0,.2)}
+/* 전집 */
+.series-row{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+.series-row::-webkit-scrollbar{display:none}
+.scard{flex:none;width:132px;border:0;background:none;padding:0;text-align:left;display:grid;gap:6px}
+.scard .cover{border-radius:16px}
+.scard b{font-size:14px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.scard span{font-size:12px;color:var(--muted)}
+.scard .bar{margin-top:0;height:7px}
+.scard.add .cover{display:grid;place-items:center;background:var(--purple);color:var(--purple-ink);font-family:var(--f-disp);font-size:15px;box-shadow:none;border:2px dashed #CFC3FF}
+.shead{display:flex;gap:14px;align-items:center}
+.shead .cv{width:74px;height:98px;border-radius:12px;overflow:hidden;flex:none;background:var(--purple)}
+.shead .cv img{width:100%;height:100%;object-fit:cover}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap}
+.srows{display:grid;gap:6px}
+.srow{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:8px 8px 8px 12px}
+.mosaic{width:100%;height:100%;display:grid;gap:2px;background:#fff}
+.mosaic.n2{grid-template-columns:1fr 1fr}.mosaic.n3,.mosaic.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.mosaic.n3 img:first-child{grid-row:span 2}
+.mosaic img{width:100%;height:100%;object-fit:cover;display:block;min-height:0}
+.rcov{position:relative;width:38px;height:50px;border-radius:7px;overflow:hidden;flex:none;background:#fff;border:1.5px dashed #D9D4EA;display:grid;place-items:center;color:var(--purple-ink);cursor:pointer}
+.rcov svg{width:20px;height:20px}
+.rcov img{width:100%;height:100%;object-fit:cover}
+.rcov input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.srow .no{font-family:var(--f-disp);color:var(--muted);min-width:24px;font-variant-numeric:tabular-nums}
+.srow .t{flex:1;min-width:0;border:0;background:none;text-align:left;padding:4px 0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow.done .t{color:var(--muted)}
+.chk{width:40px;height:40px;border-radius:12px;border:2px solid #DEDAEA;background:#fff;display:grid;place-items:center;color:transparent;flex:none}
+.chk svg{width:22px;height:22px}
+.chk.on{background:var(--pink);border-color:var(--pink);color:var(--pink-ink)}
+/* 배지 */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin-top:10px}
+.badge{display:grid;justify-items:center;gap:2px;text-align:center;background:var(--surface);border-radius:18px;padding:12px 6px 10px}
+.badge svg{width:56px;height:62px}
+.badge b{font-size:13px}
+.badge span{font-size:11.5px;color:var(--muted)}
+.badge:not(.on) b{color:var(--muted)}
+.celebrate{display:grid;justify-items:center;text-align:center;gap:8px;padding:10px 0 4px}
+.celebrate svg{width:120px;height:134px}
+.celebrate h2{font-size:26px}
+/* 담아두기 */
+.prep-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.prow{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:10px 12px;box-shadow:var(--shadow)}
+.prow input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.prow .mini{width:40px;height:54px;border-radius:7px;overflow:hidden;flex:none}
+.prow .t{flex:1;min-width:0;border:0;background:none;text-align:left;padding:0}
+.prow .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .t span{font-size:12.5px;color:var(--muted)}
+.hint-card{background:var(--yellow);border-radius:20px;padding:14px 16px;font-size:14px;color:#5e4700;display:flex;gap:12px;align-items:center}
+.hint-card .ib{background:#fff}
+.review textarea{min-height:80px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app"><div class="wrap"><div class="loading">책장을 여는 중이에요…</div></div></div>
+<div id="sheetWrap" hidden><div class="scrim" data-act="close-sheet"></div><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+/* ---------- 작은 도구 ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const fmtD=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today=()=>fmtD(new Date());
+const parseD=s=>{const [y,m,d]=String(s).split('-').map(Number);return new Date(y,(m||1)-1,d||1)};
+const addDays=(s,n)=>{const d=parseD(s);d.setDate(d.getDate()+n);return fmtD(d)};
+const diffDays=(a,b)=>Math.round((parseD(a)-parseD(b))/86400000);
+const md=s=>{if(!s)return'';const d=parseD(s);return `${d.getMonth()+1}/${d.getDate()}`};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const clone=o=>o==null?o:JSON.parse(JSON.stringify(o));
+const LOAN_DAYS=7;
+const BADGES=[[1,'첫 책','pink'],[5,'책 새싹','sky'],[10,'책 친구','purple'],[20,'책 탐험가','yellow'],[30,'책 박사','pink'],[50,'책 요정','sky'],[100,'책 대장','purple'],[200,'책 전설','yellow']];
+const TONES={pink:['#FFDCE8','#D6457B'],sky:['#D7EEFF','#2C7CC4'],purple:['#EAE2FF','#6A4FD6'],yellow:['#FFF1C1','#B88600'],off:['#F2F1F6','#CBC8D8']};
+function medal(n,tone,on){const [bg,ink]=TONES[on?tone:'off'];return `<svg viewBox="0 0 64 72" aria-hidden="true"><path d="M21 42 14 68l10-5 6 9 5-22z" fill="${ink}" opacity=".45"/><path d="M43 42l7 26-10-5-6 9-5-22z" fill="${ink}" opacity=".45"/><circle cx="32" cy="29" r="25" fill="${bg}" stroke="${ink}" stroke-width="3"/><circle cx="32" cy="29" r="18" fill="#fff" opacity=".75"/><text x="32" y="${n>=100?35:37}" text-anchor="middle" font-family="Jua, sans-serif" font-size="${n>=100?17:22}" fill="${ink}">${n}</text></svg>`}
+const doneCount=mid=>S.books.filter(b=>b.memberId===mid&&b.status==='done').length;
+function crossed(before,after){return BADGES.filter(([n])=>before<n&&after>=n).pop()}
+const COLORS=['#FFC2D8','#B4DDFF','#D6C8FF','#FFE58F','#BDEED6','#FFD0B0','#F6C9F0','#CFE6AE'];
+function inkOf(hex){const h=/^#[0-9a-fA-F]{6}$/.test(hex||'')?hex:'#D6C8FF';const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let H=0,S=0;const L=(mx+mn)/2;if(d){S=L>.5?d/(2-mx-mn):d/(mx+mn);H=mx===r?((g-b)/d+(g<b?6:0)):mx===g?(b-r)/d+2:(r-g)/d+4;H*=60}return `hsl(${Math.round(H)} ${Math.round(Math.min(80,Math.max(S*100,55)))}% 40%)`}
+const cv=c=>`--c:${safeColor(c)};--ci:${inkOf(c)}`;
+const LIBTYPES={public:'공공도서관',school:'학교도서관',home:'우리집',etc:'기타'};
+const ROLE={parent:'부모',kid:'아이'};
+const safeImg=u=>typeof u==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(u)?u:'';
+const safeColor=c=>/^#[0-9a-fA-F]{6}$/.test(c||'')?c:'#D6C8FF';
+const josa=(name,a,b)=>{const c=String(name).charCodeAt(String(name).length-1)-0xAC00;return (c>=0&&c<=11171&&c%28!==0)?a:b};
+const ICON={
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  logo:'<svg viewBox="0 0 48 48"><rect x="4" y="4" width="40" height="40" rx="13" fill="#FFDCE8"/><path d="M12 15.5c4-1.6 8-1.4 12 1v18c-4-2.4-8-2.6-12-1z" fill="#fff" stroke="#D6457B" stroke-width="2.2" stroke-linejoin="round"/><path d="M36 15.5c-4-1.6-8-1.4-12 1v18c4-2.4 8-2.6 12-1z" fill="#EAE2FF" stroke="#6A4FD6" stroke-width="2.2" stroke-linejoin="round"/><path d="M30.5 21.2c-.8-1.4-2.9-1.1-3 .6-.1 1.6 2.2 3 3 3.6.8-.6 3.1-2 3-3.6-.1-1.7-2.2-2-3-.6z" fill="#D6457B"/></svg>',
+  shelf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="4" height="16" rx="1.2" fill="currentColor" fill-opacity=".18"/><rect x="8.5" y="6" width="4" height="14" rx="1.2"/><path d="m14.6 6.3 3.2-.9 3.6 13.8-3.2.9z" fill="currentColor" fill-opacity=".18"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M3 10h18" /><path d="M8 3v4M16 3v4"/><path d="M12 13.2c-.6-1-2.2-.8-2.2.5 0 1.2 1.7 2.2 2.2 2.6.5-.4 2.2-1.4 2.2-2.6 0-1.3-1.6-1.5-2.2-.5z" fill="currentColor"/></svg>',
+  fam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3.2" fill="currentColor" fill-opacity=".18"/><circle cx="16.5" cy="10" r="2.5"/><path d="M2.8 20c.5-3.6 2.8-5.6 5.7-5.6s5.2 2 5.7 5.6"/><path d="M14.2 15.6c.7-1.2 1.6-1.8 2.8-1.8 2.2 0 3.6 1.8 4 5"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h9a3 3 0 0 1 3 3v3" /><path d="M5 4v15a1 1 0 0 0 1 1h5"/><circle cx="17" cy="16.5" r="4.5" fill="currentColor" fill-opacity=".18"/><path d="M17 14.5v2.2l1.4.9"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="3" fill="currentColor" fill-opacity=".15"/><path d="m4 7.5 8 5.5 8-5.5"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.5 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="currentColor" fill-opacity=".25"/></svg>',
+  crown:'<svg viewBox="0 0 24 24"><path d="M4 8.5l4 3.5 4-6 4 6 4-3.5-1.6 9.5H5.6z" fill="#FFD54F" stroke="#C99200" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="14" r="1.4" fill="#fff"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h11a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11"/></svg>',
+  clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="3"/><path d="M9 3.5h6v3H9zM8.5 11h7M8.5 15h5"/></svg>',
+  bookmark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-6-4-6 4z" fill="currentColor" fill-opacity=".2"/><path d="M12 7v5.5M9.2 9.8h5.6"/></svg>',
+  sets:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="4.5" height="15" rx="1.2" fill="currentColor" fill-opacity=".2"/><rect x="8.5" y="5" width="4.5" height="15" rx="1.2"/><rect x="14" y="5" width="4.5" height="15" rx="1.2" fill="currentColor" fill-opacity=".2"/><path d="M2.5 20.5h19"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.5h6.8L17 8h3v11H4z" fill="currentColor" fill-opacity=".15"/><circle cx="12" cy="13" r="3.4"/></svg>',
+  medal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 2.5 6M16 3l-2.5 6"/><circle cx="12" cy="15" r="6" fill="currentColor" fill-opacity=".2"/><path d="m12 12.3.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/></svg>',
+  chev:'<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>',
+  x:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+};
+const ib=(name,tone,cls='')=>`<span class="ib ${tone} ${cls}">${ICON[name]}</span>`;
+
+/* ---------- 붙여넣기 해석 (도서관마다 다른 형식) ---------- */
+function parseBookText(raw){
+  const out={};
+  if(!raw) return out;
+  let t=String(raw).replace(/\r/g,'').replace(/ /g,' ');
+  const hi=t.indexOf('도서관명');
+  if(hi>=0){ // 형식 1: 표
+    const before=t.slice(0,hi).replace(/\s+/g,' ').trim();
+    if(before) out.title=before;
+    const lines=t.slice(hi).split('\n');
+    let rows=lines.slice(1).filter(l=>l.trim());
+    const known=['도서관명','소장위치','청구기호','등록번호','대출여부','반납예정','예약자수','예약','자료실','상태','대출상태','반납예정일'];
+    const toks0=lines[0].split(/\s+/).filter(Boolean);
+    const headerTokens=[];let i0=0;while(i0<toks0.length&&known.includes(toks0[i0])){headerTokens.push(toks0[i0]);i0++;}
+    const restOfLine=lines[0].split(/\t/).length>headerTokens.length+2
+      ? lines[0].split('\t').slice(headerTokens.length).join('\t')
+      : toks0.slice(i0).join(' ');
+    if(restOfLine.trim()) rows.unshift(restOfLine);
+    const recs=rows.map(r=>{
+      const vals=r.split('\t').map(s=>s.trim());
+      const rec={};
+      if(vals.length>=4){headerTokens.forEach((h,i)=>rec[h]=vals[i]||'');}
+      else{ // 탭이 사라진 경우: 생김새로 추정
+        const tk=r.trim().split(/\s+/);
+        rec['도서관명']=tk.find(x=>/도서관$/.test(x))||tk[0];
+        rec['등록번호']=tk.find(x=>/^[A-Z]{1,4}\d{5,}$/.test(x))||'';
+        rec['청구기호']=tk.find(x=>x!==rec['등록번호']&&/\d/.test(x)&&/[-.]/.test(x))||'';
+        rec['대출여부']=tk.find(x=>/가능|대출중|불가|대출/.test(x))||'';
+        const cand=tk[tk.indexOf(rec['도서관명'])+1];
+        if(cand&&cand!==rec['청구기호']&&cand!==rec['등록번호']&&cand!==rec['대출여부']) rec['소장위치']=cand;
+      }
+      return rec;
+    }).filter(r=>Object.values(r).some(Boolean));
+    const pick=recs.find(r=>/가능/.test(r['대출여부']||''))||recs[0];
+    if(pick){
+      out.library=pick['도서관명']||'';out.location=pick['소장위치']||'';
+      out.callNo=pick['청구기호']||'';out.regNo=pick['등록번호']||'';out.availability=pick['대출여부']||'';
+    }
+    return cleanObj(out);
+  }
+  // 형식 2: "키: 값"
+  const keyMap={'제목':'title','서명':'title','도서명':'title','자료명':'title','저자':'author','지은이':'author','저자사항':'author','출판사':'publisher','발행처':'publisher','발행자':'publisher','출판년도':'year','발행년도':'year','출판연도':'year','발행년':'year','소장학교':'library','소장도서관':'library','도서관':'library','소장처':'location','소장위치':'location','자료실':'location','청구기호':'callNo','등록번호':'regNo','대출상태':'availability','대출여부':'availability','상태':'availability'};
+  const keys=Object.keys(keyMap).sort((a,b)=>b.length-a.length);
+  const re=new RegExp('('+keys.join('|')+')\\s*[:：]','g');
+  const hits=[];let m;
+  while((m=re.exec(t))){hits.push({k:m[1],s:m.index,e:re.lastIndex});}
+  if(hits.length){
+    const pre=t.slice(0,hits[0].s).replace(/\s+/g,' ').trim();
+    if(pre) out.title=pre;
+    hits.forEach((h,i)=>{
+      const v=t.slice(h.e,i+1<hits.length?hits[i+1].s:t.length).replace(/\s+/g,' ').trim();
+      const f=keyMap[h.k];
+      if(v&&(!out[f]||f==='title')) out[f]=v;
+    });
+    if(out.author){
+      const au=[],il=[];
+      out.author.split(/[;；,]/).map(s=>s.trim()).filter(Boolean).forEach(p=>{
+        if(/그림|그린이|삽화/.test(p)) il.push(p.replace(/\s*(그림|그린이|삽화)\s*/g,' ').trim());
+        else au.push(p.replace(/\s*(지음|글|저|지은이|엮음|옮김)\s*$/,'').trim());
+      });
+      out.author=au.join(', ');
+      if(il.length) out.illustrator=il.join(', ');
+    }
+    if(out.year){const y=out.year.match(/\d{4}/);out.year=y?y[0]:out.year;}
+    return cleanObj(out);
+  }
+  const first=t.split('\n').map(s=>s.trim()).filter(Boolean)[0];
+  if(first&&first.length<60) out.title=first;
+  return cleanObj(out);
+}
+function cleanObj(o){Object.keys(o).forEach(k=>{if(typeof o[k]==='string'){o[k]=o[k].trim();if(!o[k])delete o[k];}});return o;}
+
+/* ---------- 저장소: 공유 DB, 안 되면 이 기기에만 저장 ---------- */
+function deepMerge(a,b){const o=clone(a)||{};for(const k in b){const v=b[k];if(v&&typeof v==='object'&&!Array.isArray(v)&&o[k]&&typeof o[k]==='object'&&!Array.isArray(o[k]))o[k]=deepMerge(o[k],v);else o[k]=v;}return o;}
+const Local={
+  key:'gbs-local-v1',data:{},subs:[],
+  load(){try{this.data=JSON.parse(localStorage.getItem(this.key)||'{}')}catch(e){this.data={}}},
+  save(){try{localStorage.setItem(this.key,JSON.stringify(this.data))}catch(e){}},
+  get(p){return this.data[p]?clone(this.data[p]):null},
+  set(p,d){this.data[p]=clone(d);this.save();this.emit(p)},
+  update(p,d){if(!this.data[p])throw{code:'invalid_argument'};this.data[p]=deepMerge(this.data[p],clone(d));this.save();this.emit(p)},
+  del(p){delete this.data[p];this.save();this.emit(p)},
+  list(col){const n=col.split('/').length+1;return Object.keys(this.data).filter(k=>k.startsWith(col+'/')&&k.split('/').length===n).map(k=>({id:k.split('/').pop(),...clone(this.data[k])}))},
+  sub(col,cb){const s={col,cb};this.subs.push(s);setTimeout(()=>cb(this.list(col)),0);return()=>{this.subs=this.subs.filter(x=>x!==s)}},
+  subDoc(p,cb){const s={doc:p,cb};this.subs.push(s);setTimeout(()=>cb(this.get(p)),0);return()=>{this.subs=this.subs.filter(x=>x!==s)}},
+  emit(p){const col=p.split('/').slice(0,-1).join('/');this.subs.forEach(s=>{if(s.col===col)s.cb(this.list(col));if(s.doc===p)s.cb(this.get(p))})}
+};
+const FB_SDK=window.FB_SDK_BASE||'https://www.gstatic.com/firebasejs/10.12.2/';
+function flattenPatch(o,prefix=[],out=[]){for(const k in o){const v=o[k];if(v===undefined)continue;if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length)flattenPatch(v,[...prefix,k],out);else out.push([[...prefix,k],v])}return out}
+const plain=d=>JSON.parse(JSON.stringify(d));
+const quick=pr=>Promise.race([pr,new Promise(r=>setTimeout(r,1500))]);
+const Store={
+  mode:'local',db:null,
+  async initFb(cfg){
+    const [A,F,Au]=await Promise.all([import(FB_SDK+'firebase-app.js'),import(FB_SDK+'firebase-firestore.js'),import(FB_SDK+'firebase-auth.js')]);
+    const app=A.initializeApp(cfg);
+    let fs;try{fs=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})})}catch(e){fs=F.getFirestore(app)}
+    const auth=Au.getAuth(app);
+    await new Promise(r=>{const u=Au.onAuthStateChanged(auth,()=>{u();r()})});
+    if(!auth.currentUser) await Au.signInAnonymously(auth);
+    this.F=F;this.fs=fs;this.mode='fb';
+  },
+  async init(){
+    if(window.FB_CONFIG){
+      if(!window.FB_CONFIG.apiKey||!window.FB_CONFIG.projectId){this.mode='needcfg';return}
+      try{await this.initFb(window.FB_CONFIG)}catch(e){console.error(e);this.mode='fberr';this.fbErr=String(e&&e.code||e&&e.message||e)}
+      return;
+    }
+    let db=null;
+    try{if(window.claude&&window.claude.use) db=await window.claude.use('db');}catch(e){db=null}
+    if(db){this.mode='db';this.db=db}else{this.mode='local';Local.load()}
+  },
+  async get(p){if(this.mode==='fb'){const s=await this.F.getDoc(this.F.doc(this.fs,p));return s.exists()?s.data():null}if(this.mode==='db'){const s=await this.db.doc(p).get();return s.exists?s.data():null}return Local.get(p)},
+  async set(p,d){if(this.mode==='fb')return quick(this.F.setDoc(this.F.doc(this.fs,p),plain(d)));if(this.mode==='db')return this.db.doc(p).set(d);Local.set(p,d)},
+  async update(p,d){if(this.mode==='fb'){const F=this.F;const pairs=flattenPatch(plain(d));if(!pairs.length)return;const args=[];pairs.forEach(([k,v])=>args.push(new F.FieldPath(...k),v));return quick(F.updateDoc(F.doc(this.fs,p),...args))}if(this.mode==='db')return this.db.doc(p).update(d);Local.update(p,d)},
+  async del(p){if(this.mode==='fb')return quick(this.F.deleteDoc(this.F.doc(this.fs,p)));if(this.mode==='db')return this.db.doc(p).delete();Local.del(p)},
+  sub(col,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.collection(this.fs,col),s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.collection(col).onSnapshot(s=>cb(s.docs.map(x=>({id:x.id,...x.data()})),s.metadata),err);return Local.sub(col,cb)},
+  subDoc(p,cb,err){if(this.mode==='fb')return this.F.onSnapshot(this.F.doc(this.fs,p),s=>cb(s.exists()?s.data():null,{fromCache:s.metadata.fromCache}),err);if(this.mode==='db')return this.db.doc(p).onSnapshot(s=>cb(s.exists?s.data():null,s.metadata),err);return Local.subDoc(p,cb)}
+};
+async function write(fn,okMsg){
+  try{await fn();if(okMsg)toast(okMsg);return true}
+  catch(e){
+    const c=e&&e.code;
+    toast(c==='permission-denied'?'저장할 권한이 없어요. 파이어베이스 규칙을 확인해 주세요.':c==='invalid_argument'?'저장할 권한이 없어요. 공유한 사람에게 참여 권한을 받아 주세요.':c==='quota_exceeded'?'저장 공간이 가득 찼어요. 오래된 책을 지워 주세요.':'저장하지 못했어요. 잠시 뒤 다시 해 주세요.');
+    return false;
+  }
+}
+
+/* ---------- 기기 설정(이 기기에서 누가 쓰는지) ---------- */
+let devMem={};
+const Dev={get(){try{return JSON.parse(localStorage.getItem('gbs-device')||'null')||devMem}catch(e){return devMem}},set(v){devMem=v;try{localStorage.setItem('gbs-device',JSON.stringify(v))}catch(e){}}};
+
+/* ---------- 상태 ---------- */
+const S={ready:false,code:null,me:null,fam:undefined,members:[],libs:[],books:[],series:[],prepFor:null,prepSel:new Set(),
+  tab:'shelf',view:'all',loanOpen:true,filter:'all',q:'',calMonth:today().slice(0,7),calDay:null,famMonth:today().slice(0,7),
+  slow:false,err:null,readOnly:false,sample:null,sampleImg:false,pinFor:null};
+let unsubs=[];
+const base=()=>'fam/'+S.code;
+const me=()=>S.members.find(m=>m.id===S.me);
+const isParent=()=>me()?.role==='parent';
+const memberOf=id=>S.members.find(m=>m.id===id);
+const libOf=b=>S.libs.find(l=>l.id===b.libId);
+const isHome=b=>(libOf(b)?.type||b.libType)==='home';
+const onLoan=b=>!!(b.loan&&!b.loan.returned&&b.loan.due);
+const viewIds=()=>isParent()?(S.view!=='all'&&memberOf(S.view)?[S.view]:S.members.map(m=>m.id)):[S.me];
+const kids=()=>S.members.filter(m=>m.role==='kid');
+const libLabel=b=>b.libName||libOf(b)?.name||'';
+const seriesOf=b=>b&&b.seriesId?S.series.find(x=>x.id===b.seriesId):null;
+const shown=b=>!b.hidden;
+let sheetRefresh=null;
+
+function connect(code){
+  unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
+  S.code=code;S.fam=undefined;S.members=[];S.libs=[];S.books=[];S.series=[];S.err=null;S.slow=false;
+  let got=0;const timer=setTimeout(()=>{S.slow=true;render()},10000);
+  const tick=meta=>{if(!meta||!meta.fromCache){got++;if(got>=5){clearTimeout(timer);S.slow=false}}};
+  const onErr=e=>{clearTimeout(timer);S.err=e&&e.code||'unavailable';render()};
+  unsubs.push(Store.subDoc(base(),(d,meta)=>{S.fam=d;tick(meta);render()},onErr));
+  unsubs.push(Store.sub(base()+'/members',(l,meta)=>{S.members=l.sort((a,b)=>(a.order??0)-(b.order??0)||String(a.name).localeCompare(b.name));tick(meta);render()},onErr));
+  unsubs.push(Store.sub(base()+'/libs',(l,meta)=>{S.libs=l.sort((a,b)=>String(a.name).localeCompare(b.name,'ko'));tick(meta);render()},onErr));
+  unsubs.push(Store.sub(base()+'/books',(l,meta)=>{S.books=l.sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));tick(meta);render();sheetRefresh&&sheetRefresh()},onErr));
+  unsubs.push(Store.sub(base()+'/series',(l,meta)=>{S.series=l.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));tick(meta);render();sheetRefresh&&sheetRefresh()},onErr));
+}
+
+/* ---------- 화면 그리기 ---------- */
+function render(){
+  const ae=document.activeElement;const keep=ae&&ae.id&&$('#app').contains(ae)?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
+  $('#app').innerHTML=view();
+  if(keep){const el=document.getElementById(keep.id);if(el){el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
+}
+function view(){
+  if(!S.ready) return `<div class="wrap"><div class="loading">책장을 여는 중이에요…</div></div>`;
+  if(Store.mode==='needcfg') return `<div class="wrap"><div class="hero"><span style="width:72px;height:72px;display:block">${ICON.logo}</span><h1>연결 설정이 필요해요</h1><p>firebase-config.js 파일에 파이어베이스 설정값을 넣어 주세요. 안내서(README)의 순서를 따라 하면 돼요.</p></div></div>`;
+  if(Store.mode==='fberr') return `<div class="wrap"><div class="hero"><span style="width:72px;height:72px;display:block">${ICON.logo}</span><h1>서버에 연결하지 못했어요</h1><p>인터넷 연결을 확인하고 앱을 다시 열어 주세요. 처음 한 번은 인터넷이 꼭 필요해요.</p><p class="note">${esc(Store.fbErr||'')}</p></div><button class="btn primary" onclick="location.reload()">다시 열기</button></div>`;
+  if(!S.code) return onboardView();
+  if(S.err) return `<div class="wrap"><div class="hero"><h1>책장을 열 수 없어요</h1><p>연결이 끊겼거나 볼 수 있는 권한이 바뀌었어요. 잠시 뒤 다시 열어 주세요.</p></div><button class="btn" data-act="leave">처음 화면으로</button></div>`;
+  if(S.fam===undefined) return `<div class="wrap"><div class="loading">가족 책장을 불러오는 중이에요…${S.slow?'<br>연결이 느려요. 조금만 기다려 주세요.':''}</div></div>`;
+  if(S.fam===null) return `<div class="wrap"><div class="hero"><h1>가족 코드를 찾지 못했어요</h1><p>코드 <b class="mono">${esc(S.code)}</b>로 만든 가족이 없어요. 글자를 다시 확인해 주세요.</p></div><button class="btn primary" data-act="leave">코드 다시 입력하기</button></div>`;
+  if(!me()) return pickView();
+  const tabs=[['shelf','책장',ib('shelf','pink')],['cal','달력',ib('cal','sky')],...(isParent()?[['prep','담아두기',ib('bookmark','yellow')]]:[]),['fam','가족',ib('fam','purple')]];
+  if(S.tab==='prep'&&!isParent()) S.tab='shelf';
+  let body=S.tab==='cal'?calView():S.tab==='fam'?famView():S.tab==='prep'?prepView():shelfView();
+  const m=me();
+  return `<header class="top"><div class="top-in">
+      <div class="brand"><span style="width:40px;height:40px;display:block;flex:none">${ICON.logo}</span><span class="tx"><span class="logo">책도장</span><span class="famname">${esc(S.fam.name||'우리 가족')}</span></span></div>
+      <button class="me-chip" data-act="switch" aria-label="프로필 바꾸기"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)}<small>${ROLE[m.role]||''}</small></button>
+      <button class="icon-btn" data-act="settings" aria-label="설정">${ICON.gear}</button>
+    </div></header>
+    <main class="wrap">
+      ${Store.mode==='local'?`<div class="banner">지금은 이 기기에만 저장돼요. 가족과 함께 쓰려면 Claude에 로그인한 상태로 이 페이지를 열어 주세요.</div>`:''}
+      ${S.readOnly?`<div class="banner">보기 전용으로 열려 있어요. 책을 추가하려면 공유한 사람에게 '참여자' 이상 권한을 받아 주세요.</div>`:''}
+      ${S.slow?`<div class="banner">연결이 느려서 최신 내용이 아닐 수 있어요.</div>`:''}
+      ${isParent()&&S.tab==='shelf'&&S.books.length>=5&&(!S.fam.lastBackupAt||diffDays(today(),S.fam.lastBackupAt)>30)?`<div class="banner" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>${S.fam.lastBackupAt?'마지막 백업이 한 달이 넘었어요.':'아직 백업한 적이 없어요.'} 한 달에 한 번 백업 파일을 저장해 두세요.</span><button class="btn sm" data-act="settings" style="background:#fff">백업하러 가기</button></div>`:''}
+      ${body}
+    </main>
+    ${S.tab==='prep'?`<div class="fab"><button class="btn primary" data-act="prep-add">+ 미리 담기</button></div>`:''}
+    ${S.tab==='shelf'?`<div class="fab">${isParent()&&kids().length?`<button class="btn" data-act="ask">빌려와 줘 문자</button>`:''}<button class="btn primary" data-act="add">+ 책 추가</button></div>`:''}
+    <nav class="tabbar"><div class="tabbar-in" style="--n:${tabs.length}">${tabs.map(([k,l,ic])=>`<button data-act="tab" data-id="${k}" ${S.tab===k?'aria-current="page"':''}>${ic}${l}</button>`).join('')}</div></nav>`;
+}
+function viewbar(withAll=true){
+  if(!isParent()) return '';
+  return `<div class="viewbar" role="group" aria-label="누구 책장 볼까요">${withAll?`<button class="av-chip" data-act="view" data-id="all" aria-pressed="${S.view==='all'}"><span class="av" style="--c:var(--purple);--ci:var(--purple-ink)">${ICON.fam}</span>전체</button>`:''}${S.members.map(m=>`<button class="av-chip" data-act="view" data-id="${esc(m.id)}" aria-pressed="${S.view===m.id}"><span class="av" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)}</button>`).join('')}</div>`;
+}
+function coverHTML(b){
+  const img=safeImg(b.cover)||safeImg(seriesOf(b)?.cover);const m=memberOf(b.memberId);
+  return img?`<img src="${img}" alt="">`:`<div class="ph" style="${cv(m?.color)}">${ICON.book}<span>${esc(b.title)}</span></div>`;
+}
+function dueStamp(b){
+  const d=diffDays(b.loan.due,today());
+  if(d<0) return `<span class="stamp over">${-d}일 지남</span>`;
+  if(d===0) return `<span class="stamp over">오늘 반납</span>`;
+  return `<span class="stamp ${d<=2?'due-soon':''}">반납 D-${d}</span>`;
+}
+function statusLabel(b){return b.status==='done'?'다 읽음':b.status==='reading'?'읽는 중':(isHome(b)?'읽을 책':'빌려올 책')}
+
+function shelfView(){
+  const ids=viewIds();const all=S.books.filter(b=>ids.includes(b.memberId)&&shown(b));
+  const showOwner=isParent()&&ids.length>1;
+  const sers=S.series.filter(x=>(x.memberIds||[]).some(id=>ids.includes(id)));
+  const asks=all.filter(b=>b.ask&&!b.ask.done&&!onLoan(b));
+  const loans=all.filter(onLoan).sort((a,b)=>a.loan.due<b.loan.due?-1:1);
+  const ym=today().slice(0,7);
+  const monthDone=all.filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(ym)).length;
+  let list=all.filter(b=>!b.seriesId);
+  if(S.filter!=='all') list=list.filter(b=>(b.status||'want')===S.filter);
+  if(S.q.trim()){const q=S.q.trim().toLowerCase();list=list.filter(b=>[b.title,b.author,b.callNo,libLabel(b)].join(' ').toLowerCase().includes(q))}
+  const owner=b=>{const m=memberOf(b.memberId);return showOwner&&m?`<span class="tag"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)}</span>`:''};
+  const gm=ids.length===1?memberOf(ids[0]):null;
+  return `${viewbar()}
+  <div class="hero-card"><div class="grow"><div class="k">${gm?esc(gm.name)+'의 ':''}이번 달 다 읽은 책</div><div class="v">${monthDone}<small>권</small></div>${gm&&gm.goal?`<div class="bar"><i style="width:${Math.min(100,Math.round(monthDone/gm.goal*100))}%"></i></div><div class="s">목표 ${gm.goal}권 · ${monthDone>=gm.goal?'목표 달성!':`${gm.goal-monthDone}권 남았어요`}</div>`:`<div class="s">다 읽으면 '다 읽었어요'를 눌러 주세요</div>`}</div>${ib('star','yellow','lg')}</div>
+  ${asks.length?`<section class="sec asks"><div class="sec-title">${ib('mail','yellow').replace('class="ib','style="background:#fff" class="ib')}<h2>${isParent()?'아이에게 부탁한 책':'빌려와 달라는 부탁이 왔어요'}</h2></div>${asks.map(b=>{const by=memberOf(b.ask.by);const to=memberOf(b.memberId);return `<div class="ask-row"><div class="t"><b>${esc(b.title)}</b><span>${esc(libLabel(b))}${b.location?' · '+esc(b.location):''}${b.callNo?` · <span class="mono">${esc(b.callNo)}</span>`:''}</span><br><span>${isParent()?esc(to?.name||'')+'에게 부탁 · '+md(b.ask.at):esc(by?.name||'가족')+'의 부탁 · '+md(b.ask.at)}</span></div><button class="btn-dark" data-act="loan-now" data-id="${esc(b.id)}">빌렸어요</button></div>`}).join('')}</section>`:''}
+  <section class="sec loan">
+    <button class="loan-toggle" data-act="loan-toggle" aria-expanded="${S.loanOpen}">
+      ${ib('clock','sky')}<h2>대출 중</h2><span class="cnt">${loans.length}</span>
+      <span class="hint">${loans.length?`가장 빠른 반납 ${md(loans[0].loan.due)}`:'빌린 책이 없어요'}</span>${ICON.chev}
+    </button>
+    ${S.loanOpen?`<div class="loan-body">${loans.length?`<div class="loan-head"><span></span><span>책 · 빌린 날 → 반납일</span><span>반납</span></div>`+loans.map(b=>`<div class="loan-row">
+        <div class="mini">${coverHTML(b)}</div>
+        <div class="t"><b>${esc(b.title)}</b><span>${showOwner?esc(memberOf(b.memberId)?.name||'')+' · ':''}${esc(libLabel(b))} · ${md(b.loan.at)} → <b style="display:inline">${md(b.loan.due)}</b></span></div>
+        <div class="acts">${dueStamp(b)}<div><button class="btn sm" data-act="extend" data-id="${esc(b.id)}">+7일</button><button class="btn sm primary" data-act="return" data-id="${esc(b.id)}">반납</button></div></div>
+      </div>`).join(''):`<div class="loan-empty">책을 빌리면 여기서 반납일을 알려 드려요. 반납은 빌린 날부터 ${LOAN_DAYS}일이에요.</div>`}</div>`:''}
+  </section>
+  ${sers.length||isParent()?`<section class="sec"><div class="sec-title">${ib('sets','purple')}<h2 style="flex:1">우리집 전집</h2></div>
+    <div class="series-row">${sers.map(x=>{const bs=S.books.filter(b=>b.seriesId===x.id&&ids.includes(b.memberId));const d=bs.filter(b=>b.status==='done').length;
+      return `<button class="scard" data-act="series" data-id="${esc(x.id)}"><div class="cover">${mosaic(x)}</div><b>${esc(x.name)}</b><div class="bar"><i style="width:${bs.length?Math.round(d/bs.length*100):0}%;background:var(--purple-ink)"></i></div><span>${d} / ${bs.length}권 읽음</span></button>`}).join('')}
+    ${isParent()?`<button class="scard add" data-act="series-new"><div class="cover">+ 전집 추가</div><span>표지와 제목만 넣으면 돼요</span></button>`:''}</div></section>`:''}
+  <section class="sec">
+    <div class="tools">
+      <div class="seg" role="group" aria-label="상태">${[['all','전체'],['want','읽을 책'],['reading','읽는 중'],['done','다 읽음']].map(([k,l])=>`<button data-act="filter" data-id="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('')}</div>
+      <input class="search" id="q" type="search" placeholder="제목·저자·청구기호 찾기" value="${esc(S.q)}" aria-label="책 찾기">
+    </div>
+    ${list.length?`<div class="grid">${list.map(b=>`<button class="card" data-act="open" data-id="${esc(b.id)}">
+        <div class="cover">${coverHTML(b)}${owner(b)}${onLoan(b)?dueStamp(b):b.status==='done'?`<span class="stamp read">다 읽음 ${md(b.doneAt)}</span>`:''}</div>
+        <div class="meta"><b>${esc(b.title)}</b><span>${esc(b.author||'')}${b.author&&libLabel(b)?' · ':''}${esc(libLabel(b))}</span><span class="pill ${esc(b.status||'want')}">${statusLabel(b)}</span></div>
+      </button>`).join('')}</div>`
+    :`<div class="empty">${all.length?'조건에 맞는 책이 없어요.':`<b>아직 책장이 비어 있어요</b><span>도서관 검색 결과를 붙여넣거나 집에 있는 책을 추가해 보세요.</span><button class="btn primary" data-act="add">+ 첫 책 추가하기</button>`}</div>`}
+  </section>`;
+}
+
+function calView(){
+  const ids=viewIds();const showOwner=ids.length>1;
+  const [y,mo]=S.calMonth.split('-').map(Number);
+  const first=new Date(y,mo-1,1);const startDow=first.getDay();const daysIn=new Date(y,mo,0).getDate();
+  const mine=S.books.filter(b=>ids.includes(b.memberId)&&shown(b));
+  const done=mine.filter(b=>b.status==='done'&&b.doneAt);
+  const inMonth=done.filter(b=>b.doneAt.startsWith(S.calMonth));
+  const byDay={};inMonth.forEach(b=>{(byDay[b.doneAt]=byDay[b.doneAt]||[]).push(b)});
+  const dues={};mine.filter(onLoan).forEach(b=>{(dues[b.loan.due]=dues[b.loan.due]||[]).push(b)});
+  const yearCnt=done.filter(b=>b.doneAt.startsWith(String(y))).length;
+  const goal=ids.reduce((s,id)=>s+(+memberOf(id)?.goal||0),0);
+  const pct=goal?Math.min(100,Math.round(inMonth.length/goal*100)):0;
+  const td=today();
+  let cells='';
+  ['일','월','화','수','목','금','토'].forEach(d=>cells+=`<div class="dow">${d}</div>`);
+  for(let i=0;i<startDow;i++) cells+=`<div class="day blank"></div>`;
+  for(let d=1;d<=daysIn;d++){
+    const ds=`${y}-${pad(mo)}-${pad(d)}`;const bs=byDay[ds]||[];const du=dues[ds]||[];
+    const covers=bs.slice(0,3).map(b=>{const img=safeImg(b.cover);const c=safeColor(memberOf(b.memberId)?.color);return `<i style="--c:${c};${img?`background-image:url('${img}')`:''}"></i>`}).join('');
+    cells+=`<button class="day ${ds===td?'today':''} ${bs.length?'has':''}" data-act="day" data-id="${ds}" aria-pressed="${S.calDay===ds}" aria-label="${mo}월 ${d}일, ${bs.length}권 읽음${du.length?', 반납일':''}">
+      <span class="n"><span>${d}</span>${du.length?'<span class="due">반납</span>':''}</span>
+      ${bs.length?`<span class="covers">${covers}</span>${bs.length>3?`<span class="more">+${bs.length-3}</span>`:''}`:''}</button>`;
+  }
+  const sel=S.calDay&&S.calDay.startsWith(S.calMonth)?S.calDay:null;
+  const selList=sel?[...(byDay[sel]||[]).map(b=>({b,k:'read'})),...(dues[sel]||[]).map(b=>({b,k:'due'}))]:[];
+  return `${viewbar()}
+  <div class="sec-h sec"><div class="cal-nav"><button class="icon-btn" data-act="cal-prev" aria-label="이전 달">‹</button><h2>${y}년 ${mo}월</h2><button class="icon-btn" data-act="cal-next" aria-label="다음 달">›</button></div>
+  ${S.calMonth!==td.slice(0,7)?`<button class="btn sm" data-act="cal-today">이번 달</button>`:''}</div>
+  <div class="stats">
+    <div class="stat"><div class="k">${mo}월에 읽은 책</div><div class="v">${inMonth.length}<small>권</small></div>${goal?`<div class="bar"><i style="width:${pct}%"></i></div><div class="k">목표 ${goal}권 · ${pct}%</div>`:''}</div>
+    <div class="stat"><div class="k">${y}년 한 해</div><div class="v">${yearCnt}<small>권</small></div></div>
+    <div class="stat"><div class="k">지금까지</div><div class="v">${done.length}<small>권</small></div></div>
+  </div>
+  <div class="cal" role="grid">${cells}</div>
+  <p class="note" style="margin-top:8px">다 읽은 날에 표지가 붙어요. 빨간 '반납'은 반납일이에요. 날짜를 누르면 목록이 보여요.</p>
+  ${sel?`<section class="sec"><h2 style="font-size:18px">${md(sel)} 기록</h2><div class="list">${selList.length?selList.map(({b,k})=>`<button class="li" data-act="open" data-id="${esc(b.id)}"><div class="mini">${coverHTML(b)}</div><div class="t"><b>${esc(b.title)}</b><span>${showOwner?esc(memberOf(b.memberId)?.name||'')+' · ':''}${k==='read'?(b.rating?'★'.repeat(Math.min(5,+b.rating||0))+' ':'')+(b.memo?esc(b.memo):'다 읽음'):'반납일'}</span></div>${k==='due'?'<span class="stamp over">반납</span>':'<span class="stamp read">읽음</span>'}</button>`).join(''):'<p class="note">이날은 기록이 없어요.</p>'}</div></section>`:''}
+  ${badgeSection(ids)}`;
+}
+function badgeSection(ids){
+  if(ids.length!==1) return `<section class="sec"><div class="sec-title">${ib('medal','yellow')}<h2>배지</h2></div><p class="note">위에서 한 사람을 고르면 그 사람의 배지가 보여요.</p></section>`;
+  const m=memberOf(ids[0]);const total=doneCount(ids[0]);
+  const months={};S.books.forEach(b=>{if(b.memberId===ids[0]&&b.status==='done'&&b.doneAt){const k=b.doneAt.slice(0,7);months[k]=(months[k]||0)+1}});
+  const goalHit=m?.goal?Object.values(months).filter(n=>n>=m.goal).length:0;
+  const next=BADGES.find(([n])=>total<n);
+  return `<section class="sec"><div class="sec-title">${ib('medal','yellow')}<h2 style="flex:1">${esc(m?.name||'')}의 배지</h2><span class="note">${next?`다음 배지까지 ${next[0]-total}권`:'모든 배지를 모았어요!'}</span></div>
+  <div class="badges">${BADGES.map(([n,name,tone])=>{const on=total>=n;return `<div class="badge ${on?'on':''}">${medal(n,tone,on)}<b>${name}</b><span>${n}권</span></div>`}).join('')}
+  <div class="badge ${goalHit?'on':''}">${medal(goalHit,'yellow',goalHit>0)}<b>목표 달성</b><span>${m?.goal?`목표 채운 달 ${goalHit}번`:'목표를 정해 주세요'}</span></div></div></section>`;
+}
+
+/* ---------- 담아두기 (부모만) ---------- */
+function prepView(){
+  const order=[...kids(),...S.members.filter(m=>m.role!=='kid')];
+  if(!S.prepFor||!memberOf(S.prepFor)) S.prepFor=order[0]?.id||null;
+  const who=memberOf(S.prepFor);
+  const list=S.books.filter(b=>b.hidden&&b.memberId===S.prepFor);
+  [...S.prepSel].forEach(id=>{if(!list.some(b=>b.id===id))S.prepSel.delete(id)});
+  const n=S.prepSel.size;
+  const counts=id=>S.books.filter(b=>b.hidden&&b.memberId===id).length;
+  return `<div class="hint-card" style="margin-top:10px">${ib('bookmark','yellow')}<span>여기 담은 책은 아이 화면에 안 보여요. 도서관에서 검색하면서 한꺼번에 담아 두고, 빌려 올 때 책장으로 보내거나 문자로 부탁하세요.</span></div>
+  <div class="viewbar" role="tablist" aria-label="누구 책">${order.map(m=>`<button class="av-chip" role="tab" data-act="prep-for" data-id="${esc(m.id)}" aria-pressed="${m.id===S.prepFor}"><span class="av" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span>${esc(m.name)} ${counts(m.id)}</button>`).join('')}</div>
+  <div class="prep-tools">
+    <button class="btn sm" data-act="prep-all">${n&&n===list.length?'선택 풀기':'모두 고르기'}</button>
+    <button class="btn sm primary" data-act="prep-send" ${n?'':'disabled'}>책장으로 보내기${n?' '+n:''}</button>
+    <button class="btn sm" data-act="prep-ask" style="background:var(--yellow);color:var(--yellow-ink)" ${n?'':'disabled'}>빌려와 줘 문자${n?' '+n:''}</button>
+    <button class="btn sm danger" data-act="prep-del" ${n?'':'disabled'}>${S.prepDelArmed?'정말 지울까요?':'지우기'}</button>
+  </div>
+  ${list.length?`<div class="list" style="margin-top:12px">${list.map(b=>`<div class="prow"><input type="checkbox" data-prepsel="${esc(b.id)}" ${S.prepSel.has(b.id)?'checked':''} aria-label="${esc(b.title)} 고르기"><div class="mini">${coverHTML(b)}</div><button class="t" data-act="open" data-id="${esc(b.id)}"><b>${esc(b.title)}</b><span>${esc(libLabel(b))}${b.callNo?` · <span class="mono">${esc(b.callNo)}</span>`:''}${b.availability?' · '+esc(b.availability):''}</span></button></div>`).join('')}</div>`
+  :`<div class="empty"><b>${esc(who?.name||'')}에게 담아 둔 책이 없어요</b><span>'+ 미리 담기'를 누르고 도서관 검색 결과를 붙여넣으세요. '저장하고 하나 더'로 계속 담을 수 있어요.</span></div>`}`;
+}
+
+function famView(){
+  const ym=S.famMonth;const [y,mo]=ym.split('-').map(Number);
+  const rows=S.members.map(m=>{const n=S.books.filter(b=>b.memberId===m.id&&b.status==='done'&&(b.doneAt||'').startsWith(ym)).length;return {m,n}}).sort((a,b)=>b.n-a.n);
+  const total=rows.reduce((s,r)=>s+r.n,0);const goalSum=S.members.reduce((s,m)=>s+(+m.goal||0),0);
+  const top=rows[0]?.n||0;
+  const feed=S.books.filter(b=>b.status==='done'&&(b.doneAt||'').startsWith(ym)).sort((a,b)=>String(b.doneAt).localeCompare(String(a.doneAt))).slice(0,40);
+  let rank=0,prev=null;
+  return `<div class="sec-h sec"><div class="cal-nav"><button class="icon-btn" data-act="fam-prev" aria-label="이전 달">‹</button><h2>${y}년 ${mo}월</h2><button class="icon-btn" data-act="fam-next" aria-label="다음 달">›</button></div></div>
+  <div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="stat"><div class="k">우리 가족이 함께 읽은 책</div><div class="v">${total}<small>권</small></div>${goalSum?`<div class="bar"><i style="width:${Math.min(100,Math.round(total/goalSum*100))}%"></i></div><div class="k">가족 목표 ${goalSum}권</div>`:''}</div>
+    <div class="stat"><div class="k">이달의 책벌레</div><div class="v" style="font-size:22px">${top?rows.filter(r=>r.n===top).map(r=>esc(r.m.name)).join(', '):'아직 없어요'}</div><div class="k">${top?`${top}권 읽었어요`:'먼저 한 권 읽어 볼까요?'}</div></div>
+  </div>
+  <div class="rank">${rows.map((r,i)=>{if(r.n!==prev){rank=i+1;prev=r.n}const g=+r.m.goal||0;const w=g?Math.min(100,Math.round(r.n/g*100)):(top?Math.round(r.n/top*100):0);
+    return `<div class="rk" style="${cv(r.m.color)}"><div class="pos">${rank===1&&r.n>0?ICON.crown:rank}</div><div class="av">${esc(r.m.name.slice(0,1))}</div><div style="min-width:0"><div class="who">${esc(r.m.name)}<small>${ROLE[r.m.role]||''}</small></div><div class="bar"><i style="width:${w}%"></i></div></div><div class="num">${r.n}<small>${g?`목표 ${g}권`:'권'}</small></div></div>`}).join('')}</div>
+  <section class="sec"><div class="sec-title">${ib('star','pink')}<h2>이번 달 다 읽은 책</h2></div>
+  <div class="feed">${feed.length?feed.map(b=>{const m=memberOf(b.memberId);const ch=b.cheers||{};const n=Object.values(ch).filter(Boolean).length;const mine=!!ch[S.me];
+    return `<div class="li"><div class="mini">${coverHTML(b)}</div><div class="t"><b>${esc(b.title)}</b><span>${esc(m?.name||'')} · ${md(b.doneAt)}${b.rating?' · '+'★'.repeat(Math.min(5,+b.rating||0)):''}${b.memo?' · '+esc(b.memo):''}</span></div><button class="cheer" data-act="cheer" data-id="${esc(b.id)}" aria-pressed="${mine}" aria-label="응원하기">♥ ${n||'응원'}</button></div>`}).join(''):'<p class="note">이번 달에는 아직 다 읽은 책이 없어요.</p>'}</div></section>
+  <div class="codebox"><div style="flex:1;min-width:180px"><div class="note">가족 코드</div><div class="code">${esc(S.code)}</div><p class="note">다른 휴대폰이나 컴퓨터에서 이 코드를 넣으면 같은 가족으로 연결돼요.</p></div><button class="btn" data-act="copy-code">코드 복사</button></div>`;
+}
+
+/* ---------- 처음 화면 ---------- */
+function onboardView(){
+  return `<div class="wrap"><div class="hero"><span style="width:72px;height:72px;display:block">${ICON.logo}</span><h1>가족 책도장</h1><p>도서관에서 빌린 책, 집에 있는 책을 가족이 함께 기록해요. 반납일은 도장으로 알려 주고, 다 읽은 책은 달력에 붙어요.</p></div>
+  ${Store.mode==='local'?`<div class="banner">지금은 공유 저장소에 연결되지 않아 이 기기에만 저장돼요.</div>`:''}
+  <div class="ob">
+    <div class="box"><h3>예전 앱에서 옮겨오기</h3><p class="note">Claude에서 쓰던 가족 책도장의 '설정 › 데이터 옮기기 › 내보내기'로 받은 내용을 넣으면 가족 코드와 책이 그대로 옮겨져요.</p><button class="btn" data-act="import-new" style="justify-self:start">가져오기</button></div>
+    <form class="box" id="join-form"><h3>가족 코드로 들어가기</h3><label class="f">가족 코드<input id="join-code" class="mono" autocomplete="off" autocapitalize="characters" placeholder="예: AB12CD" style="letter-spacing:.1em"></label><p class="err" id="join-err" hidden></p><button class="btn primary" type="submit">들어가기</button></form>
+    <form class="box" id="new-form"><h3>새 가족 만들기</h3>
+      <label class="f">가족 이름<input id="new-name" value="우리 가족"></label>
+      <div class="f" style="display:grid;gap:6px;font-size:13px;color:var(--muted)">구성원
+        <div id="new-members" style="display:grid;gap:6px">${[['','kid'],['','kid'],['엄마','parent'],['아빠','parent']].map(([n,r])=>newMemberRow(n,r)).join('')}</div>
+        <button type="button" class="btn sm" data-act="new-member-row" style="justify-self:start">+ 한 명 더</button>
+      </div>
+      <button class="btn primary" type="submit">가족 만들기</button></form>
+  </div></div>`;
+}
+function newMemberRow(n='',r='kid'){return `<div style="display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:6px"><input class="inp nm-name" value="${esc(n)}" placeholder="${r==='kid'?'아이 이름':'이름'}" aria-label="이름"><select class="inp nm-role" aria-label="역할"><option value="kid" ${r==='kid'?'selected':''}>아이</option><option value="parent" ${r==='parent'?'selected':''}>부모</option></select></div>`}
+function pickView(){
+  return `<div class="wrap"><div class="hero"><h1>누가 쓰나요?</h1><p>${esc(S.fam.name||'우리 가족')} · 이 기기에서 쓸 사람을 골라 주세요. 아이를 고르면 자기 책만 보여요.</p></div>
+  ${S.members.length?`<div class="pick">${S.members.map(m=>`<button data-act="pick" data-id="${esc(m.id)}"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span><b>${esc(m.name)}</b><small>${ROLE[m.role]||''}</small></button>`).join('')}</div>`:'<div class="loading">구성원을 불러오는 중이에요…</div>'}
+  ${S.pinFor&&S.pinFor!=='__switch'?pinBox():''}
+  <p style="margin-top:24px"><button class="btn ghost" data-act="leave">다른 가족 코드로 들어가기</button></p></div>`;
+}
+function pinBox(){return `<form class="box" id="pin-form" style="margin-top:16px;max-width:360px"><h3>부모 잠금 번호</h3><label class="f">${esc(memberOf(S.pinFor)?.name||'')} 프로필은 잠금 번호가 필요해요<input id="pin-in" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></label><p class="err" id="pin-err" hidden>번호가 달라요.</p><div class="actions"><button class="btn primary" type="submit">확인</button><button class="btn" type="button" data-act="pin-cancel">취소</button></div></form>`}
+
+/* ---------- 시트(팝업) ---------- */
+function openSheet(html,mount){sheetRefresh=null;$('#sheet').innerHTML=html;$('#sheetWrap').hidden=false;document.body.style.overflow='hidden';$('#sheet').scrollTop=0;mount&&mount($('#sheet'))}
+function closeSheet(){sheetRefresh=null;$('#sheetWrap').hidden=true;$('#sheet').innerHTML='';document.body.style.overflow=''}
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+
+const COVER_MAX=200;
+function shrinkImg(src,revoke){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{let w=img.naturalWidth,h=img.naturalHeight;const s=Math.min(1,COVER_MAX/Math.max(w,h));w=Math.max(1,Math.round(w*s));h=Math.max(1,Math.round(h*s));const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);if(revoke)URL.revokeObjectURL(src);let data=c.toDataURL('image/webp',0.6);if(!data.startsWith('data:image/webp'))data=c.toDataURL('image/jpeg',0.62);res(data)};img.onerror=()=>{if(revoke)URL.revokeObjectURL(src);rej(new Error('img'))};img.src=src})}
+async function compressImage(file){const data=await shrinkImg(URL.createObjectURL(file),true);return {data,blob:file}}
+async function shrinkDataUrl(u){if(!safeImg(u)||u.length<9000)return u;try{return await shrinkImg(u,false)}catch(e){return u}}
+function dataUrlToBlob(u){const [h,b]=u.split(',');const bin=atob(b);const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:h.match(/data:(.*?);/)[1]})}
+
+function libOptions(sel){return S.libs.map(l=>`<option value="${esc(l.id)}" ${l.id===sel?'selected':''}>${esc(l.name)} (${LIBTYPES[l.type]||'기타'})</option>`).join('')+`<option value="__new">+ 새 도서관 추가…</option>`}
+
+function openBook(id,preset){
+  const b=id?S.books.find(x=>x.id===id):null;
+  if(id&&!b) return;
+  const canEdit=!b||isParent()||b.memberId===S.me;
+  const parent=isParent();
+  let cover=b?safeImg(b.cover):'';let coverBlob=null;let rating=b?.rating||0;let status=b?.status||'want';
+  const pm=preset?.memberIds||(preset?.memberId?[preset.memberId]:null);
+  const targets=new Set(b?[b.memberId]:(pm?pm:(parent?(S.view!=='all'&&memberOf(S.view)?[S.view]:[]):[S.me])));
+  const defaultLib=b?.libId||(preset?.libId&&S.libs.some(l=>l.id===preset.libId)?preset.libId:null)||(S.libs.find(l=>l.type!=='home')||S.libs[0])?.id||'__new';
+  const hiddenOn=b?!!b.hidden:!!preset?.hidden;
+  const loanOn=b?onLoan(b):false;
+  const quick=b?`<div class="box"><div class="actions">
+      ${!isHome(b)?(onLoan(b)?`${dueStamp(b)}<button class="btn sm" data-act="extend" data-id="${esc(b.id)}">반납일 +7일</button><button class="btn sm primary" data-act="return" data-id="${esc(b.id)}">반납했어요</button>`:`<button class="btn sm primary" data-act="loan-now" data-id="${esc(b.id)}">오늘 빌렸어요</button>`):''}
+      ${b.status!=='done'?`<button class="btn sm" data-act="mark-done" data-id="${esc(b.id)}">다 읽었어요</button>`:''}
+      ${b.status==='want'?`<button class="btn sm" data-act="mark-reading" data-id="${esc(b.id)}">읽기 시작</button>`:''}
+      ${parent&&!isHome(b)&&!onLoan(b)&&b.status!=='done'?`<button class="btn sm" data-act="ask" data-id="${esc(b.memberId)}" data-book="${esc(b.id)}">빌려와 줘 문자</button>`:''}
+    </div></div>`:'';
+  const ro=canEdit?'':'disabled';
+  const html=`<div class="sheet-h"><h2>${b?esc(b.title):hiddenOn?'미리 담기':'책 추가'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <form class="form" id="book-form">
+    ${quick}
+    ${!b&&parent?`<div class="f" style="display:grid;gap:6px;font-size:13px;color:var(--muted)">누구 책장에 넣을까요? (여러 명 골라도 돼요)<div class="viewbar" style="padding:0;flex-wrap:wrap">${S.members.map(m=>`<button type="button" class="chip" data-tg="${esc(m.id)}" aria-pressed="${targets.has(m.id)}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`).join('')}</div></div>`:''}
+    ${parent?`<label class="check" style="background:var(--yellow);border-radius:14px;padding:10px 12px"><input type="checkbox" id="f-hidden" ${hiddenOn?'checked':''}> 담아두기 (아이 화면에는 아직 안 보여요)</label>`:''}
+    ${seriesOf(b)?`<p class="note">전집 '${esc(seriesOf(b).name)}' ${b.seriesNo?b.seriesNo+'번':''}</p>`:''}
+    ${b&&parent?`<label class="f">누구 책인가요<select id="f-member">${S.members.map(m=>`<option value="${esc(m.id)}" ${m.id===b.memberId?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`:''}
+    ${canEdit?`<div class="paste"><div class="ttl">${ib('clip','sky')}도서관 검색 결과 붙여넣기</div><p>도서관 홈페이지의 책 정보를 통째로 복사해 붙여넣으면 칸이 자동으로 채워져요. 표 모양, '저자: …' 모양 둘 다 돼요.</p><textarea id="f-paste" placeholder="예) 하하 자매 떡집   도서관명 소장위치 청구기호 …&#10;또는) 저자: 김리리 지음;김이랑 그림 출판사: 비룡소 …"></textarea><div class="actions"><button type="button" class="btn sm primary" id="do-parse">칸 채우기</button><span class="note" id="parse-msg"></span></div></div>`:''}
+    <div class="cover-pick"><div class="prev" id="cv-prev">${cover?`<img src="${cover}" alt="표지">`:'표지<br>사진'}</div>
+      ${canEdit?`<div class="btns"><label class="btn sm file-btn">표지 사진 넣기<input type="file" id="f-cover" accept="image/*"></label><button type="button" class="btn sm" id="ai-cover" hidden>표지 글자로 칸 채우기</button>${cover?`<button type="button" class="btn sm ghost" id="rm-cover">사진 빼기</button>`:''}<span class="note" id="ai-msg"></span></div>`:''}</div>
+    <label class="f">제목 *<input id="f-title" value="${esc(b?.title||'')}" required ${ro}></label>
+    <div class="row2 stack"><label class="f">지은이<input id="f-author" value="${esc(b?.author||'')}" ${ro}></label><label class="f">그린이<input id="f-illus" value="${esc(b?.illustrator||'')}" ${ro}></label></div>
+    <div class="row2"><label class="f">출판사<input id="f-pub" value="${esc(b?.publisher||'')}" ${ro}></label><label class="f">출판년도<input id="f-year" inputmode="numeric" value="${esc(b?.year||'')}" ${ro}></label></div>
+    <div class="box"><h3>어디 책이에요?</h3>
+      <label class="f">도서관·책장<select id="f-lib" ${ro}>${libOptions(defaultLib)}</select></label>
+      <div class="row2 stack" id="newlib" ${defaultLib==='__new'?'':'hidden'}><label class="f">새 도서관 이름<input id="f-libname"></label><label class="f">종류<select id="f-libtype">${Object.entries(LIBTYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label></div>
+      <div id="libfields">
+      <div class="row2"><label class="f">소장위치·자료실<input id="f-loc" value="${esc(b?.location||'')}" ${ro}></label><label class="f">대출 가능 여부<input id="f-avail" value="${esc(b?.availability||'')}" ${ro}></label></div>
+      <div class="row2 stack" style="margin-top:10px"><label class="f">청구기호<input id="f-call" class="mono" value="${esc(b?.callNo||'')}" ${ro}></label><label class="f">등록번호<input id="f-reg" class="mono" value="${esc(b?.regNo||'')}" ${ro}></label></div>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="f-loan" ${loanOn?'checked':''} ${ro}> 지금 빌려 온 상태예요</label>
+      <div class="row2" id="loanrow" ${loanOn?'':'hidden'}><label class="f">빌린 날<input type="date" id="f-loanat" value="${esc(b?.loan?.at||today())}" ${ro}></label><label class="f">반납 예정일<input type="date" id="f-due" value="${esc(b?.loan?.due||addDays(today(),LOAN_DAYS))}" ${ro}></label></div>
+      </div>
+    </div>
+    <div class="box"><h3>읽기</h3>
+      <div class="seg" role="group" aria-label="읽기 상태" id="f-status">${[['want','읽을 책'],['reading','읽는 중'],['done','다 읽음']].map(([k,l])=>`<button type="button" data-st="${k}" aria-pressed="${status===k}" ${ro}>${l}</button>`).join('')}</div>
+      <label class="f" id="donerow" ${status==='done'?'':'hidden'}>다 읽은 날<input type="date" id="f-doneat" value="${esc(b?.doneAt||today())}" ${ro}></label>
+      <div class="f">별점<div class="stars" id="f-stars">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="${n<=rating?'on':''}" aria-label="${n}점" ${ro}>★</button>`).join('')}</div></div>
+      <label class="f">한 줄 느낌<textarea id="f-memo" rows="2" placeholder="가장 재미있었던 장면은?" ${ro}>${esc(b?.memo||'')}</textarea></label>
+    </div>
+    <p class="err" id="f-err" hidden></p>
+    ${canEdit?`<div class="sheet-foot">${b?`<button type="button" class="btn danger" id="del-btn">지우기</button><span style="flex:1"></span>`:''}<button type="button" class="btn" data-act="close-sheet">닫기</button>${!b?`<button type="submit" class="btn" id="save-more" style="background:var(--purple);color:var(--purple-ink)">저장하고 하나 더</button>`:''}<button type="submit" class="btn primary">저장</button></div>`:`<p class="note">다른 가족의 책은 볼 수만 있어요.</p>`}
+  </form>`;
+  openSheet(html,root=>{
+    if(!canEdit) return;
+    const f=id=>root.querySelector('#'+id);
+    const syncLib=()=>{const v=f('f-lib').value;f('newlib').hidden=v!=='__new';const t=v==='__new'?f('f-libtype').value:(S.libs.find(l=>l.id===v)?.type);f('libfields').querySelectorAll('#f-loan,#loanrow').forEach(()=>{});f('f-loan').closest('label').hidden=t==='home';if(t==='home'){f('loanrow').hidden=true}else{f('loanrow').hidden=!f('f-loan').checked}};
+    f('f-lib').addEventListener('change',syncLib);f('f-libtype').addEventListener('change',syncLib);syncLib();
+    f('f-loan').addEventListener('change',()=>{f('loanrow').hidden=!f('f-loan').checked});
+    f('f-loanat').addEventListener('change',()=>{if(f('f-loanat').value)f('f-due').value=addDays(f('f-loanat').value,LOAN_DAYS)});
+    root.querySelectorAll('[data-tg]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.tg;targets.has(k)?targets.delete(k):targets.add(k);el.setAttribute('aria-pressed',targets.has(k))}));
+    f('f-status').addEventListener('click',e=>{const x=e.target.closest('[data-st]');if(!x)return;status=x.dataset.st;f('f-status').querySelectorAll('[data-st]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.st===status));f('donerow').hidden=status!=='done'});
+    f('f-stars').addEventListener('click',e=>{const x=e.target.closest('[data-star]');if(!x)return;const n=+x.dataset.star;rating=rating===n?0:n;f('f-stars').querySelectorAll('[data-star]').forEach(y=>y.classList.toggle('on',+y.dataset.star<=rating))});
+    const fill=p=>{
+      const map={title:'f-title',author:'f-author',illustrator:'f-illus',publisher:'f-pub',year:'f-year',location:'f-loc',availability:'f-avail',callNo:'f-call',regNo:'f-reg'};
+      let n=0;for(const k in map){if(p[k]){f(map[k]).value=p[k];n++}}
+      if(p.library){
+        const norm=s=>String(s).replace(/\s|도서관/g,'');
+        const hit=S.libs.find(l=>norm(l.name)===norm(p.library))||S.libs.find(l=>norm(l.name).includes(norm(p.library))||norm(p.library).includes(norm(l.name))&&norm(l.name));
+        if(hit){f('f-lib').value=hit.id}else{f('f-lib').value='__new';f('f-libname').value=p.library;f('f-libtype').value=/학교/.test(p.library)?'school':'public'}
+        syncLib();n++;
+      }
+      return n;
+    };
+    const runParse=()=>{const p=parseBookText(f('f-paste').value);const n=fill(p);f('parse-msg').textContent=n?`${n}개 칸을 채웠어요. 맞는지 확인해 주세요.`:'알아볼 수 있는 내용이 없어요. 직접 입력해 주세요.';
+      if(p.library&&f('f-lib').value==='__new') f('parse-msg').textContent+=` '${p.library}'은(는) 저장할 때 도서관 목록에 추가돼요.`};
+    f('do-parse').addEventListener('click',runParse);
+    const setCover=async file=>{try{const r=await compressImage(file);cover=r.data;coverBlob=r.blob;f('cv-prev').innerHTML=`<img src="${cover}" alt="표지">`;f('ai-cover').hidden=!S.sampleImg}catch(e){toast('사진을 읽지 못했어요.')}};
+    f('f-paste').addEventListener('paste',e=>{const file=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith('image/'));if(file){e.preventDefault();setCover(file);return}setTimeout(runParse,0)});
+    f('f-cover').addEventListener('change',e=>{const file=e.target.files[0];if(file)setCover(file)});
+    if(cover&&S.sampleImg) f('ai-cover').hidden=false;
+    f('rm-cover')?.addEventListener('click',()=>{cover='';coverBlob=null;f('cv-prev').innerHTML='표지<br>사진';f('rm-cover').hidden=true;f('ai-cover').hidden=true});
+    f('ai-cover').addEventListener('click',async()=>{
+      if(!S.sample) return;const blob=coverBlob||(cover?dataUrlToBlob(cover):null);if(!blob)return;
+      f('ai-msg').textContent='표지를 읽는 중이에요…';f('ai-cover').disabled=true;
+      try{
+        const r=await S.sample.json('이 사진은 책의 앞표지입니다. 표지에 실제로 보이는 글자만 읽어서 JSON 하나로만 답하세요. 형식: {"title":"","author":"","illustrator":"","publisher":""}. 보이지 않거나 확실하지 않은 칸은 빈 문자열로 두세요. "글", "그림", "지음" 같은 말은 이름에서 빼세요.',{images:[blob],modelTier:'quick'});
+        const p={};['title','author','illustrator','publisher'].forEach(k=>{if(r&&typeof r[k]==='string'&&r[k].trim())p[k]=r[k].trim().slice(0,120)});
+        const map={title:'f-title',author:'f-author',illustrator:'f-illus',publisher:'f-pub'};let n=0;
+        for(const k in p){if(!f(map[k]).value.trim()){f(map[k]).value=p[k];n++}}
+        f('ai-msg').textContent=n?`${n}개 칸을 채웠어요. 맞는지 확인해 주세요.`:'새로 채울 칸이 없었어요.';
+      }catch(e){
+        if(e&&e.code==='not_granted'){S.sampleImg=false;f('ai-cover').hidden=true;f('ai-msg').textContent=''}
+        else f('ai-msg').textContent=e&&e.code==='rate_limited'?'잠시 뒤에 다시 해 주세요.':'표지를 읽지 못했어요. 직접 입력해 주세요.';
+      }finally{f('ai-cover').disabled=false}
+    });
+    if(b){let armed=false;f('del-btn').addEventListener('click',async()=>{if(!armed){armed=true;f('del-btn').textContent='한 번 더 누르면 지워져요';return}if(await write(()=>Store.del(base()+'/books/'+b.id),'지웠어요'))closeSheet()})}
+    f('book-form').addEventListener('submit',async e=>{
+      e.preventDefault();const err=f('f-err');err.hidden=true;
+      const title=f('f-title').value.trim();if(!title){err.textContent='제목을 적어 주세요.';err.hidden=false;f('f-title').focus();return}
+      let who=b?[parent?f('f-member').value:b.memberId]:[...targets];if(!parent&&!b)who=[S.me];
+      if(!who.length){err.textContent='누구 책장에 넣을지 골라 주세요.';err.hidden=false;return}
+      let libId=f('f-lib').value,libName='',libType='';
+      if(libId==='__new'){
+        libName=f('f-libname').value.trim();libType=f('f-libtype').value;
+        if(!libName){err.textContent='새 도서관 이름을 적어 주세요.';err.hidden=false;f('f-libname').focus();return}
+        const exist=S.libs.find(l=>l.name===libName);
+        if(exist){libId=exist.id;libType=exist.type}else{libId=uid();if(!await write(()=>Store.set(base()+'/libs/'+libId,{name:libName,type:libType,createdAt:new Date().toISOString()})))return}
+      }else{const l=S.libs.find(x=>x.id===libId);libName=l?.name||'';libType=l?.type||''}
+      const home=libType==='home';
+      const loanChecked=!home&&f('f-loan').checked;
+      const loanAt=f('f-loanat').value||today();const due=f('f-due').value||addDays(loanAt,LOAN_DAYS);
+      const loan=loanChecked?{at:loanAt,due,returned:false}:(b?.loan?.returned?b.loan:null);
+      const now=new Date().toISOString();
+      const data={title,author:f('f-author').value.trim(),illustrator:f('f-illus').value.trim(),publisher:f('f-pub').value.trim(),year:f('f-year').value.trim(),
+        libId,libName,libType,location:f('f-loc').value.trim(),availability:f('f-avail').value.trim(),callNo:f('f-call').value.trim(),regNo:f('f-reg').value.trim(),
+        cover:cover||'',status,doneAt:status==='done'?(f('f-doneat').value||today()):'',rating,memo:f('f-memo').value.trim(),loan,updatedAt:now,
+        hidden:parent&&f('f-hidden')?f('f-hidden').checked&&!loanChecked:!!b?.hidden};
+      const more=e.submitter&&e.submitter.id==='save-more';
+      if(loanChecked&&b?.ask&&!b.ask.done) data.ask={...b.ask,done:true};
+      let ok=true;
+      for(const mid of who){
+        const id2=b?b.id:uid();
+        const full=b?{...clone(b),...data,memberId:mid}:{...data,memberId:mid,cheers:{},ask:null,createdAt:now,addedBy:S.me};
+        delete full.id;
+        ok=await write(()=>Store.set(base()+'/books/'+id2,full))&&ok;
+      }
+      if(ok){
+        const where=data.hidden?'담아두기에':'책장에';
+        toast(b?'저장했어요':who.length>1?`${who.length}명의 ${where} 넣었어요`:`${where} 넣었어요`);
+        if(more) openBook(null,{memberIds:who,hidden:data.hidden,libId}); else closeSheet();
+        if(!b&&!more&&data.hidden&&S.tab!=='prep'){}
+      }
+    });
+  });
+}
+
+/* 다 읽었어요: 별점 + 한줄평 */
+function openDone(id){
+  const b=S.books.find(x=>x.id===id);if(!b)return;
+  if(!isParent()&&b.memberId!==S.me){toast('다른 가족의 책은 고칠 수 없어요');return}
+  let rating=b.rating||0;
+  openSheet(`<div class="sheet-h"><h2>다 읽었어요!</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <form class="form review" id="done-form">
+    <div class="shead"><div class="cv">${coverHTML(b)}</div><div><b style="font-size:17px">${esc(b.title)}</b><p class="note">${esc(memberOf(b.memberId)?.name||'')}의 책</p></div></div>
+    <div class="f">재미있었나요?<div class="stars" id="d-stars">${[1,2,3,4,5].map(n=>`<button type="button" data-star="${n}" class="${n<=rating?'on':''}" aria-label="${n}점">★</button>`).join('')}</div></div>
+    <label class="f">한줄평<textarea id="d-memo" maxlength="200" placeholder="가장 기억에 남는 장면이나 느낌을 한 줄로 써 보세요">${esc(b.memo||'')}</textarea></label>
+    <label class="f">다 읽은 날<input type="date" id="d-date" value="${esc(b.doneAt||today())}"></label>
+    <div class="sheet-foot"><button type="submit" class="btn" id="d-skip">그냥 넘어가기</button><button type="submit" class="btn primary">저장</button></div>
+  </form>`,root=>{
+    const f=k=>root.querySelector('#'+k);
+    f('d-stars').addEventListener('click',e=>{const x=e.target.closest('[data-star]');if(!x)return;const n=+x.dataset.star;rating=rating===n?0:n;f('d-stars').querySelectorAll('[data-star]').forEach(y=>y.classList.toggle('on',+y.dataset.star<=rating))});
+    f('done-form').addEventListener('submit',async e=>{e.preventDefault();
+      const skip=e.submitter&&e.submitter.id==='d-skip';
+      const before=doneCount(b.memberId);const was=b.status==='done';
+      const patch={status:'done',doneAt:f('d-date').value||today(),updatedAt:new Date().toISOString(),hidden:false};
+      if(!skip){patch.rating=rating;patch.memo=f('d-memo').value.trim().slice(0,200)}
+      if(!await write(()=>Store.update(base()+'/books/'+b.id,patch)))return;
+      const hit=!was&&crossed(before,before+1);
+      if(hit) celebrate(b.memberId,hit,before+1); else {closeSheet();toast('다 읽었어요! 달력에 붙였어요.')}
+    });
+  });
+}
+function celebrate(mid,[n,name,tone],total){
+  const m=memberOf(mid);
+  openSheet(`<div class="celebrate">${medal(n,tone,true)}<h2>${esc(name)} 배지!</h2><p class="note" style="font-size:15px">${esc(m?.name||'')}${josa(m?.name||'','이','가')} 지금까지 ${total}권을 다 읽었어요.</p><button class="btn primary" data-act="close-sheet" style="margin-top:8px">야호!</button></div>`);
+}
+function badgeToast(mid,before,after){const hit=crossed(before,after);if(hit)toast(`새 배지! ${memberOf(mid)?.name||''} · ${hit[1]} (${hit[0]}권)`);return hit}
+
+/* 전집 */
+function mosaic(x){
+  const seen=new Set();const imgs=[];
+  S.books.filter(b=>b.seriesId===x.id).sort((a,b)=>(a.seriesNo||0)-(b.seriesNo||0)).forEach(b=>{const u=safeImg(b.cover);if(u&&!seen.has(b.seriesNo)&&imgs.length<4){seen.add(b.seriesNo);imgs.push(u)}});
+  if(!imgs.length) return `<div class="ph" style="--c:var(--purple);--ci:var(--purple-ink)">${ICON.sets}<span>${esc(x.name)}</span></div>`;
+  return `<div class="mosaic n${imgs.length}">${imgs.map(u=>`<img src="${u}" alt="">`).join('')}</div>`;
+}
+function parseTitles(txt,start){
+  let no=start;
+  return String(txt||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const m=l.match(/^(\d{1,3})\s*(?:[.)\]:\-권번]|\s)\s*(.+)$/);
+    if(m){no=+m[1];return {no:no++,title:m[2].trim()}}
+    return {no:no++,title:l};
+  }).filter(x=>x.title);
+}
+async function addSeriesBooks(x,items,memberIds,progress){
+  const lib=S.libs.find(l=>l.id===x.libId)||S.libs.find(l=>l.type==='home');
+  const now=new Date().toISOString();const jobs=[];
+  for(const mid of memberIds) for(const it of items) jobs.push({mid,it});
+  let done=0,ok=true;
+  for(let i=0;i<jobs.length;i+=8){
+    const chunk=jobs.slice(i,i+8);
+    const res=await Promise.all(chunk.map(({mid,it})=>write(()=>Store.set(base()+'/books/'+uid(),{
+      title:it.title,author:'',illustrator:'',publisher:x.publisher||'',year:'',libId:lib?.id||'',libName:lib?.name||'우리집 책장',libType:'home',
+      location:'',availability:'',callNo:'',regNo:'',cover:'',status:'want',doneAt:'',rating:0,memo:'',loan:null,ask:null,cheers:{},hidden:false,
+      seriesId:x.id,seriesNo:it.no,memberId:mid,createdAt:now,updatedAt:now,addedBy:S.me}))));
+    done+=chunk.length;if(res.includes(false))ok=false;progress&&progress(done,jobs.length);
+  }
+  return ok;
+}
+async function ensureHomeLib(){
+  let l=S.libs.find(x=>x.type==='home');if(l)return l.id;
+  const id=uid();await write(()=>Store.set(base()+'/libs/'+id,{name:'우리집 책장',type:'home',createdAt:new Date().toISOString()}));return id;
+}
+function openSeriesForm(id){
+  const x=id?S.series.find(s=>s.id===id):null;
+  let cover=x?safeImg(x.cover):'';
+  const who=new Set(x?(x.memberIds||[]):kids().map(m=>m.id));
+  openSheet(`<div class="sheet-h"><h2>${x?'전집 고치기':'전집 추가'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <form class="form" id="s-form">
+    <label class="f">전집 이름 *<input id="s-name" value="${esc(x?.name||'')}" placeholder="예: 우리집 명작동화" required></label>
+    <label class="f">출판사<input id="s-pub" value="${esc(x?.publisher||'')}"></label>
+    ${!x?`<div class="f">누가 읽나요? (고른 사람마다 따로 기록돼요)<div class="subtabs" id="s-who">${S.members.map(m=>`<button type="button" class="chip" data-w="${esc(m.id)}" aria-pressed="${who.has(m.id)}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`).join('')}</div></div>
+    <label class="f">책 제목 (한 줄에 한 권씩)<textarea id="s-titles" rows="8" placeholder="1. 첫 번째 책 제목&#10;2. 두 번째 책 제목&#10;3. …&#10;(번호는 안 써도 순서대로 붙어요)"></textarea></label><p class="note">표지는 저장한 뒤 전집 목록에서 책마다 사진을 눌러 넣어요.</p>`:''}
+    <p class="err" id="s-err" hidden></p><p class="note" id="s-prog"></p>
+    <div class="sheet-foot">${x?`<button type="button" class="btn danger" id="s-del">전집 지우기</button><span style="flex:1"></span>`:''}<button type="button" class="btn" data-act="close-sheet">닫기</button><button type="submit" class="btn primary" id="s-save">저장</button></div>
+  </form>`,root=>{
+    const f=k=>root.querySelector('#'+k);
+    root.querySelectorAll('[data-w]').forEach(el=>el.addEventListener('click',()=>{const k=el.dataset.w;who.has(k)?who.delete(k):who.add(k);el.setAttribute('aria-pressed',who.has(k))}));
+    if(x){let armed=false;f('s-del').addEventListener('click',async()=>{const bs=S.books.filter(b=>b.seriesId===x.id);if(!armed){armed=true;f('s-del').textContent=`책 ${bs.length}권까지 지워져요. 한 번 더 누르기`;return}
+      f('s-prog').textContent='지우는 중이에요…';for(let i=0;i<bs.length;i+=8){await Promise.all(bs.slice(i,i+8).map(b=>write(()=>Store.del(base()+'/books/'+b.id))))}
+      if(await write(()=>Store.del(base()+'/series/'+x.id),'전집을 지웠어요'))closeSheet()})}
+    f('s-form').addEventListener('submit',async e=>{e.preventDefault();const er=f('s-err');er.hidden=true;
+      const name=f('s-name').value.trim();if(!name){er.textContent='전집 이름을 적어 주세요.';er.hidden=false;return}
+      if(x){if(await write(()=>Store.update(base()+'/series/'+x.id,{name,publisher:f('s-pub').value.trim()}),'저장했어요'))openSeries(x.id);return}
+      const items=parseTitles(f('s-titles').value,1);
+      if(!who.size){er.textContent='누가 읽을지 골라 주세요.';er.hidden=false;return}
+      if(!items.length){er.textContent='책 제목을 한 줄에 하나씩 적어 주세요.';er.hidden=false;return}
+      f('s-save').disabled=true;
+      const libId=await ensureHomeLib();const sid=uid();
+      const sx={name,publisher:f('s-pub').value.trim(),cover:'',memberIds:[...who],libId,createdAt:new Date().toISOString()};
+      if(!await write(()=>Store.set(base()+'/series/'+sid,sx))){f('s-save').disabled=false;return}
+      const ok=await addSeriesBooks({...sx,id:sid},items,[...who],(d,t)=>f('s-prog').textContent=`${d} / ${t}권 넣는 중…`);
+      toast(ok?`'${name}' ${items.length}권을 넣었어요`:'일부 책을 넣지 못했어요. 전집을 열어 확인해 주세요.');
+      openSeries(sid);
+    });
+  });
+}
+function openSeries(id,forMember){
+  const x=S.series.find(s=>s.id===id);if(!x){closeSheet();return}
+  const parent=isParent();
+  const mids=(x.memberIds||[]).filter(memberOf);
+  let cur=forMember||(parent?(mids.includes(S.view)?S.view:mids[0]):S.me);
+  openSheet(`<div class="sheet-h"><h2>${esc(x.name)}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form">
+    <div class="shead"><div class="cv" id="sr-cv">${mosaic(x)}</div>
+      <div style="flex:1;min-width:0"><p class="note">${esc(x.publisher||'우리집 전집')}</p><div id="sr-prog" style="font-family:var(--f-disp);font-size:26px"></div><div class="bar"><i id="sr-bar" style="width:0;background:var(--purple-ink)"></i></div></div></div>
+    ${parent&&mids.length>1?`<div class="subtabs" id="sr-tabs">${mids.map(mid=>{const m=memberOf(mid);return `<button type="button" class="chip" data-m="${esc(mid)}" aria-pressed="${mid===cur}"><span class="dot" style="${cv(m.color)}"></span>${esc(m.name)}</button>`}).join('')}</div>`:''}
+    <p class="note">왼쪽 사진 칸을 누르면 그 책 표지를 찍어 넣을 수 있어요. 다 읽은 책은 오른쪽 칸을 누르세요.</p>
+    <div class="srows" id="sr-list"></div>
+    ${parent?`<div class="box"><h3>책 더 넣기</h3><textarea class="inp" id="sr-more" rows="3" placeholder="한 줄에 한 권씩"></textarea><div class="actions"><button type="button" class="btn sm primary" id="sr-add">추가</button><button type="button" class="btn sm" id="sr-edit">전집 이름 고치기</button><span class="note" id="sr-msg"></span></div></div>`:''}
+  </div>`,root=>{
+    const f=k=>root.querySelector('#'+k);
+    const draw=()=>{
+      const bs=S.books.filter(b=>b.seriesId===x.id&&b.memberId===cur).sort((a,b)=>(a.seriesNo||0)-(b.seriesNo||0));
+      const d=bs.filter(b=>b.status==='done').length;
+      f('sr-cv').innerHTML=mosaic(x);f('sr-prog').textContent=`${d} / ${bs.length}권`;f('sr-bar').style.width=(bs.length?Math.round(d/bs.length*100):0)+'%';
+      f('sr-list').innerHTML=bs.length?bs.map(b=>`<div class="srow ${b.status==='done'?'done':''}"><span class="no">${esc(b.seriesNo||'')}</span>${parent?`<label class="rcov" aria-label="${esc(b.title)} 표지 넣기">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.camera}<input type="file" accept="image/*" data-rcover="${esc(b.id)}"></label>`:`<span class="rcov">${safeImg(b.cover)?`<img src="${safeImg(b.cover)}" alt="">`:ICON.book}</span>`}<button class="t" data-act="open" data-id="${esc(b.id)}">${esc(b.title)}${b.rating?` <span style="color:#E8B100">${'★'.repeat(Math.min(5,+b.rating||0))}</span>`:''}</button><button class="chk ${b.status==='done'?'on':''}" data-sdone="${esc(b.id)}" aria-label="${esc(b.title)} 다 읽음" aria-pressed="${b.status==='done'}">${ICON.check}</button></div>`).join(''):'<p class="note">아직 책이 없어요.</p>';
+    };
+    sheetRefresh=()=>{if(!S.series.some(s=>s.id===x.id)){closeSheet();return}draw()};
+    draw();
+    f('sr-tabs')?.addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;cur=b.dataset.m;f('sr-tabs').querySelectorAll('[data-m]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.m===cur));draw()});
+    f('sr-list').addEventListener('click',async e=>{const c=e.target.closest('[data-sdone]');if(!c)return;const b=S.books.find(y=>y.id===c.dataset.sdone);if(!b)return;
+      if(!parent&&b.memberId!==S.me)return;
+      const on=b.status!=='done';const before=doneCount(b.memberId);
+      c.classList.toggle('on',on);
+      if(await write(()=>Store.update(base()+'/books/'+b.id,on?{status:'done',doneAt:today(),updatedAt:new Date().toISOString()}:{status:'want',doneAt:'',updatedAt:new Date().toISOString()}))){if(on)badgeToast(b.memberId,before,before+1)}
+    });
+    f('sr-list').addEventListener('change',async e=>{const inp=e.target.closest('[data-rcover]');if(!inp||!inp.files[0])return;const b=S.books.find(y=>y.id===inp.dataset.rcover);if(!b)return;
+      try{const r=await compressImage(inp.files[0]);const same=S.books.filter(y=>y.seriesId===x.id&&y.seriesNo===b.seriesNo);
+        for(const y of same){await write(()=>Store.update(base()+'/books/'+y.id,{cover:r.data,updatedAt:new Date().toISOString()}))}toast('표지를 넣었어요')}catch(er){toast('사진을 읽지 못했어요.')}});
+    f('sr-add')?.addEventListener('click',async()=>{const last=Math.max(0,...S.books.filter(b=>b.seriesId===x.id).map(b=>+b.seriesNo||0));const items=parseTitles(f('sr-more').value,last+1);if(!items.length)return;
+      f('sr-add').disabled=true;const ok=await addSeriesBooks(x,items,mids,(d,t)=>f('sr-msg').textContent=`${d} / ${t}`);f('sr-add').disabled=false;f('sr-more').value='';f('sr-msg').textContent=ok?`${items.length}권을 더 넣었어요`:'일부를 넣지 못했어요'});
+    f('sr-edit')?.addEventListener('click',()=>openSeriesForm(x.id));
+  });
+}
+
+/* 빌려와 줘 문자 */
+function openAsk(memberId,bookId){
+  const bookIds=Array.isArray(bookId)?bookId:(bookId?[bookId]:[]);
+  const kidsList=S.members.filter(m=>m.id!==S.me);
+  let to=memberId&&memberOf(memberId)?memberId:(S.view!=='all'&&memberOf(S.view)&&S.view!==S.me?S.view:(kids()[0]?.id||kidsList[0]?.id));
+  let picked=new Set(bookIds);let dirty=false;
+  const cands=()=>S.books.filter(b=>b.memberId===to&&!onLoan(b)&&!isHome(b)&&b.status!=='done');
+  const text=()=>{
+    const m=memberOf(to);if(!m)return'';const bs=cands().filter(b=>picked.has(b.id));
+    const from=me();const nm=m.name;
+    let s=`${nm}${josa(nm,'아','야')}, 도서관에서 책 빌려와 줄래?\n`;
+    bs.forEach((b,i)=>{s+=`\n${i+1}) ${b.title}\n   ${libLabel(b)}${b.location?' · '+b.location:''}\n   청구기호 ${b.callNo||'(없음)'}\n`});
+    if(!bs.length) s+='\n(아래에서 책을 골라 주세요)\n';
+    s+=`\n빌리면 앱에서 '빌렸어요'를 눌러 줘. 반납은 ${LOAN_DAYS}일 뒤야!\n- ${from?.name||''}`;
+    return s;
+  };
+  const html=`<div class="sheet-h"><h2>빌려와 줘 문자</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form askbox">
+    <label class="f">누구에게<select id="a-to">${kidsList.map(m=>`<option value="${esc(m.id)}" ${m.id===to?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>
+    <div class="box"><h3>빌려올 책 고르기</h3><div id="a-books" class="list" style="margin:0"></div></div>
+    <label class="f">보낼 글 (고쳐도 돼요)<textarea id="a-text"></textarea></label>
+    <p class="note" id="a-phone"></p>
+    <div class="actions"><button class="btn primary" id="a-copy" type="button">글 복사 + 앱에 부탁 남기기</button><a class="btn" id="a-sms" href="#">문자앱으로 열기</a></div>
+    <p class="note">문자앱 열기는 기기에 따라 안 될 수 있어요. 그럴 땐 '글 복사'를 누르고 문자앱에 붙여넣어 주세요. 부탁은 아이 책장 맨 위에도 노란 카드로 보여요.</p>
+  </div>`;
+  openSheet(html,root=>{
+    const f=id=>root.querySelector('#'+id);
+    const smsHref=()=>{const m=memberOf(to);const ph=(m?.phone||'').replace(/[^0-9+]/g,'');return `sms:${ph}?&body=${encodeURIComponent(f('a-text').value)}`};
+    const draw=()=>{
+      const cs=cands();
+      f('a-books').innerHTML=cs.length?cs.map(b=>`<label class="li" style="cursor:pointer"><input type="checkbox" data-bk="${esc(b.id)}" ${picked.has(b.id)?'checked':''} style="width:20px;height:20px;accent-color:var(--accent)"><div class="mini">${coverHTML(b)}</div><div class="t"><b>${esc(b.title)}</b><span>${b.hidden?'담아둔 책 · ':''}${esc(libLabel(b))} · <span class="mono">${esc(b.callNo||'청구기호 없음')}</span></span></div></label>`).join(''):`<p class="note">${esc(memberOf(to)?.name||'')}의 책장에 빌려올 책이 없어요. 먼저 '책 추가'로 넣어 주세요.</p>`;
+      if(!dirty) f('a-text').value=text();
+      const m=memberOf(to);f('a-phone').textContent=m?.phone?`받는 번호: ${m.phone}`:'설정 › 구성원에서 전화번호를 넣으면 문자앱에 번호가 바로 들어가요.';
+      f('a-sms').href=smsHref();
+    };
+    f('a-to').addEventListener('change',()=>{to=f('a-to').value;picked=new Set();dirty=false;draw()});
+    f('a-books').addEventListener('change',e=>{const x=e.target.closest('[data-bk]');if(!x)return;x.checked?picked.add(x.dataset.bk):picked.delete(x.dataset.bk);dirty=false;draw()});
+    f('a-text').addEventListener('input',()=>{dirty=true;f('a-sms').href=smsHref()});
+    const leaveAsk=async()=>{const ids=[...picked];for(const id of ids){await write(()=>Store.update(base()+'/books/'+id,{ask:{by:S.me,at:today(),done:false},status:'want',hidden:false,updatedAt:new Date().toISOString()}))}return ids.length};
+    f('a-copy').addEventListener('click',()=>{
+      const txt=f('a-text').value;
+      const after=async ok=>{const n=await leaveAsk();toast(ok?(n?`복사했어요. 앱에도 ${n}권 부탁을 남겼어요.`:'복사했어요.'):'복사가 안 됐어요. 글을 길게 눌러 복사해 주세요.')};
+      try{navigator.clipboard.writeText(txt).then(()=>after(true),()=>{f('a-text').select();after(false)})}catch(e){f('a-text').select();after(false)}
+    });
+    f('a-sms').addEventListener('click',()=>{f('a-sms').href=smsHref();leaveAsk()});
+    draw();
+  });
+}
+
+/* 데이터 옮기기 */
+function exportData(){const strip=a=>a.map(x=>clone(x));return JSON.stringify({app:'family-book-stamp',v:1,code:S.code,exportedAt:new Date().toISOString(),fam:clone(S.fam),members:strip(S.members),libs:strip(S.libs),series:strip(S.series),books:strip(S.books)})}
+async function importData(obj,code,progress){
+  if(!obj||obj.app!=='family-book-stamp'||!obj.fam) throw new Error('형식이 맞지 않아요');
+  const b='fam/'+code;const jobs=[];
+  const put=(col,arr)=>(arr||[]).forEach(d=>{const id=String(d.id||'');if(!/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(id))return;const x=clone(d);delete x.id;jobs.push([b+'/'+col+'/'+id,x])});
+  put('members',obj.members);put('libs',obj.libs);put('series',obj.series);put('books',obj.books);
+  await Store.set(b,{...clone(obj.fam),importedAt:new Date().toISOString()});
+  let n=0;
+  for(let i=0;i<jobs.length;i+=8){
+    await Promise.all(jobs.slice(i,i+8).map(async([p,d])=>{if(d.cover)d.cover=await shrinkDataUrl(d.cover);await Store.set(p,d)}));
+    n=Math.min(jobs.length,i+8);progress&&progress(n,jobs.length);
+  }
+  return jobs.length;
+}
+function openImport(intoCurrent){
+  openSheet(`<div class="sheet-h"><h2>데이터 가져오기</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form">
+    <p class="note">예전 앱에서 '내보내기'로 받은 파일을 고르거나, 복사한 글을 붙여넣으세요. 같은 책은 덮어써지고, 표지는 작게 줄여서 넣어요.</p>
+    <label class="btn file-btn" style="justify-self:start">파일 고르기<input type="file" id="im-file" accept=".json,application/json,text/plain"></label>
+    <label class="f">또는 붙여넣기<textarea class="inp" id="im-text" rows="5" placeholder='{"app":"family-book-stamp", …}'></textarea></label>
+    <p class="err" id="im-err" hidden></p><p class="note" id="im-prog"></p>
+    <div class="sheet-foot"><button class="btn" data-act="close-sheet" type="button">닫기</button><button class="btn primary" id="im-go" type="button">가져오기</button></div>
+  </div>`,root=>{
+    const f=k=>root.querySelector('#'+k);
+    f('im-file').addEventListener('change',async e=>{const file=e.target.files[0];if(file)f('im-text').value=await file.text()});
+    f('im-go').addEventListener('click',async()=>{
+      const er=f('im-err');er.hidden=true;let obj;
+      try{obj=JSON.parse(f('im-text').value)}catch(e){er.textContent='내용을 읽지 못했어요. 파일 전체를 넣어 주세요.';er.hidden=false;return}
+      const code=intoCurrent?S.code:String(obj.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+      if(!code){er.textContent='가족 코드를 찾지 못했어요.';er.hidden=false;return}
+      f('im-go').disabled=true;
+      try{const n=await importData(obj,code,(d,t)=>f('im-prog').textContent=`${d} / ${t} 옮기는 중…`);
+        toast(`${n}개를 옮겼어요`);closeSheet();if(!intoCurrent){Dev.set({code,me:null});connect(code);render()}}
+      catch(e){er.textContent='옮기지 못했어요: '+(e&&e.message||'');er.hidden=false;f('im-go').disabled=false}
+    });
+  });
+}
+
+/* 설정 */
+function openSettings(){
+  const parent=isParent();
+  const html=`<div class="sheet-h"><h2>설정</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <div class="form">
+    <div class="box"><h3>가족 코드</h3><div class="codebox" style="margin:0"><div class="code" style="flex:1">${esc(S.code)}</div><button class="btn sm" data-act="copy-code">복사</button></div><p class="note">다른 기기에서 이 코드로 들어오면 같은 가족 책장을 함께 써요.</p>
+      <div class="actions"><button class="btn sm" data-act="switch">프로필 바꾸기</button><button class="btn sm ghost" data-act="leave">이 기기에서 나가기</button></div></div>
+    <div class="box"><h3>구성원</h3><div id="s-members"></div>${parent?`<button class="btn sm" data-act="member" style="justify-self:start">+ 구성원 추가</button>`:''}</div>
+    <div class="box"><h3>도서관·책장</h3><div id="s-libs"></div>
+      <form id="lib-form" class="row2 stack"><input class="inp" id="lib-name" placeholder="예: 창원도서관" aria-label="도서관 이름"><div style="display:flex;gap:6px"><select class="inp" id="lib-type" aria-label="종류">${Object.entries(LIBTYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><button class="btn primary" type="submit">추가</button></div></form></div>
+    ${parent?`<div class="box"><h3>부모 잠금 번호</h3><p class="note">아이 프로필에서 다른 프로필로 바꿀 때 묻는 번호예요. 가볍게 막는 용도예요.</p><form id="pin-set" style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp" id="pin-new" type="password" inputmode="numeric" maxlength="8" placeholder="${S.fam.pin?'설정됨 · 새 번호':'숫자 4자리'}" style="flex:1;min-width:140px" aria-label="잠금 번호"><button class="btn primary" type="submit">저장</button>${S.fam.pin?`<button class="btn" type="button" id="pin-clear">끄기</button>`:''}</form></div>
+    <div class="box"><h3>백업 · 데이터 옮기기</h3><p class="note">한 달에 한 번 '백업 파일 저장'을 눌러 두면, 무슨 일이 생겨도 '가져오기'로 되살릴 수 있어요. 파일에는 가족 책 정보가 다 들어 있으니 잘 보관해 주세요.</p><p class="note"><b>마지막 백업: ${S.fam.lastBackupAt?md(S.fam.lastBackupAt)+' ('+S.fam.lastBackupAt.slice(0,4)+'년)':'아직 없어요'}</b></p><div class="actions"><button class="btn sm primary" type="button" id="ex-file" hidden>백업 파일 저장</button><button class="btn sm" type="button" id="ex-copy">복사해서 내보내기</button><button class="btn sm" type="button" id="im-open">가져오기</button></div></div>
+    <div class="box"><h3>가족 이름</h3><form id="fam-name" style="display:flex;gap:6px"><input class="inp" id="fam-name-in" value="${esc(S.fam.name||'')}" aria-label="가족 이름"><button class="btn" type="submit">저장</button></form></div>`:''}
+  </div>`;
+  openSheet(html,root=>{
+    const f=id=>root.querySelector('#'+id);
+    const draw=()=>{
+      f('s-members').innerHTML=S.members.map(m=>{const n=S.books.filter(b=>b.memberId===m.id).length;return `<div class="mrow"><span class="dot" style="${cv(m.color)}">${esc(m.name.slice(0,1))}</span><div class="t"><b>${esc(m.name)}</b><br><span>${ROLE[m.role]||''} · 책 ${n}권${m.goal?` · 한 달 목표 ${m.goal}권`:''}${m.phone?' · '+esc(m.phone):''}</span></div>${parent||m.id===S.me?`<button class="btn sm" data-act="member" data-id="${esc(m.id)}">수정</button>`:''}</div>`}).join('');
+      f('s-libs').innerHTML=S.libs.length?S.libs.map(l=>`<div class="mrow"><div class="t"><b>${esc(l.name)}</b><br><span>${LIBTYPES[l.type]||'기타'} · 책 ${S.books.filter(b=>b.libId===l.id).length}권</span></div>${parent?`<button class="btn sm danger" data-libdel="${esc(l.id)}">지우기</button>`:''}</div>`).join(''):'<p class="note">아직 도서관이 없어요.</p>';
+    };
+    draw();
+    f('s-libs').addEventListener('click',async e=>{const x=e.target.closest('[data-libdel]');if(!x)return;if(x.dataset.armed){await write(()=>Store.del(base()+'/libs/'+x.dataset.libdel),'지웠어요. 책은 그대로 남아 있어요.');setTimeout(draw,200)}else{x.dataset.armed='1';x.textContent='정말 지울까요?'}});
+    f('lib-form').addEventListener('submit',async e=>{e.preventDefault();const n=f('lib-name').value.trim();if(!n)return;if(S.libs.some(l=>l.name===n)){toast('이미 있는 이름이에요');return}if(await write(()=>Store.set(base()+'/libs/'+uid(),{name:n,type:f('lib-type').value,createdAt:new Date().toISOString()}),'도서관을 추가했어요')){f('lib-name').value='';setTimeout(draw,200)}});
+    f('pin-set')?.addEventListener('submit',async e=>{e.preventDefault();const p=f('pin-new').value.trim();if(!/^\d{4,8}$/.test(p)){toast('숫자 4~8자리로 적어 주세요');return}await write(()=>Store.update(base(),{pin:p}),'잠금 번호를 저장했어요');f('pin-new').value=''});
+    f('pin-clear')?.addEventListener('click',()=>write(()=>Store.update(base(),{pin:''}),'잠금을 껐어요'));
+    f('ex-copy')?.addEventListener('click',()=>{const t=exportData();try{navigator.clipboard.writeText(t).then(()=>(markBackup(),toast('복사했어요. 새 앱의 가져오기에 붙여넣으세요.')),()=>toast('복사가 안 됐어요. 파일로 내보내 주세요.'))}catch(e){toast('복사가 안 됐어요.')}});
+    f('im-open')?.addEventListener('click',()=>openImport(true));
+    const markBackup=()=>write(()=>Store.update(base(),{lastBackupAt:today()}));
+    const fname=()=>`가족책도장-백업-${S.code}-${today()}.json`;
+    if(f('ex-file')&&!window.claude){f('ex-file').hidden=false;f('ex-file').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([exportData()],{type:'application/json'}));a.download=fname();document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);markBackup();toast('백업 파일을 저장했어요. 다운로드 폴더를 확인해 주세요.')})}
+    else if(f('ex-file')){(async()=>{try{const dl=window.claude&&window.claude.use&&await window.claude.use('downloads');if(!dl)return;f('ex-file').hidden=false;f('ex-file').addEventListener('click',async()=>{try{await dl.save({filename:fname(),data:new Blob([exportData()],{type:'application/json'})});markBackup();toast('백업 파일을 저장했어요')}catch(e){if(e&&e.code!=='dismissed')toast('저장하지 못했어요. 복사해서 내보내기를 써 주세요.')}})}catch(e){}})()}
+    f('fam-name')?.addEventListener('submit',async e=>{e.preventDefault();const n=f('fam-name-in').value.trim();if(n)await write(()=>Store.update(base(),{name:n}),'저장했어요')});
+  });
+}
+function openMember(id){
+  const m=id?memberOf(id):null;const parent=isParent();
+  let color=m?.color||COLORS[S.members.length%COLORS.length];
+  const html=`<div class="sheet-h"><h2>${m?esc(m.name):'구성원 추가'}</h2><button class="icon-btn" data-act="close-sheet" aria-label="닫기">${ICON.x}</button></div>
+  <form class="form" id="m-form">
+    <label class="f">이름<input id="m-name" value="${esc(m?.name||'')}" required></label>
+    ${parent?`<label class="f">역할<select id="m-role"><option value="kid" ${m?.role!=='parent'?'selected':''}>아이 (자기 책만 봐요)</option><option value="parent" ${m?.role==='parent'?'selected':''}>부모 (모두의 책을 넣고 고쳐요)</option></select></label>`:''}
+    <div class="row2"><label class="f">한 달 목표(권)<input id="m-goal" type="number" min="0" max="200" inputmode="numeric" value="${esc(m?.goal??'')}"></label><label class="f">휴대폰 번호(문자용)<input id="m-phone" type="tel" inputmode="tel" value="${esc(m?.phone||'')}" placeholder="010-0000-0000"></label></div>
+    <div class="f">색<div class="swatches" id="m-color">${COLORS.map(c=>`<button type="button" style="--c:${c}" data-c="${c}" aria-pressed="${c===color}" aria-label="색 ${c}"></button>`).join('')}</div></div>
+    <p class="err" id="m-err" hidden></p>
+    <div class="sheet-foot">${m&&parent&&m.id!==S.me?`<button type="button" class="btn danger" id="m-del">지우기</button><span style="flex:1"></span>`:''}<button type="button" class="btn" data-act="settings">뒤로</button><button class="btn primary" type="submit">저장</button></div>
+  </form>`;
+  openSheet(html,root=>{
+    const f=id=>root.querySelector('#'+id);
+    f('m-color').addEventListener('click',e=>{const x=e.target.closest('[data-c]');if(!x)return;color=x.dataset.c;f('m-color').querySelectorAll('[data-c]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.c===color))});
+    f('m-del')?.addEventListener('click',async()=>{const n=S.books.filter(b=>b.memberId===m.id).length;if(n){f('m-err').textContent=`${m.name}의 책이 ${n}권 있어요. 책을 먼저 지우거나 다른 사람에게 옮겨 주세요.`;f('m-err').hidden=false;return}const x=f('m-del');if(!x.dataset.armed){x.dataset.armed='1';x.textContent='한 번 더 누르면 지워져요';return}if(await write(()=>Store.del(base()+'/members/'+m.id),'지웠어요'))openSettings()});
+    f('m-form').addEventListener('submit',async e=>{e.preventDefault();const name=f('m-name').value.trim();if(!name)return;
+      const data={...(m?clone(m):{order:S.members.length,createdAt:new Date().toISOString()}),name,role:parent?f('m-role').value:(m?.role||'kid'),goal:Math.max(0,parseInt(f('m-goal').value,10)||0),phone:f('m-phone').value.trim(),color};delete data.id;
+      if(await write(()=>Store.set(base()+'/members/'+(m?.id||uid()),data),'저장했어요'))openSettings()});
+  });
+}
+
+/* ---------- 동작 ---------- */
+async function bookUpdate(id,patch,msg){const b=S.books.find(x=>x.id===id);if(!b)return;if(!isParent()&&b.memberId!==S.me){toast('다른 가족의 책은 고칠 수 없어요');return}
+  await write(()=>Store.update(base()+'/books/'+id,{...patch,updatedAt:new Date().toISOString()}),msg);if(!$('#sheetWrap').hidden&&$('#book-form'))closeSheet()}
+const ACT={
+  'close-sheet':()=>closeSheet(),
+  tab:el=>{S.tab=el.dataset.id;window.scrollTo(0,0);render()},
+  view:el=>{S.view=el.dataset.id;S.calDay=null;render()},
+  filter:el=>{S.filter=el.dataset.id;render()},
+  'loan-toggle':()=>{S.loanOpen=!S.loanOpen;try{localStorage.setItem('gbs-loanopen',S.loanOpen?'1':'0')}catch(e){}render()},
+  add:()=>openBook(null),
+  open:el=>openBook(el.dataset.id),
+  ask:el=>openAsk(el.dataset.id,el.dataset.book),
+  settings:()=>openSettings(),
+  member:el=>openMember(el.dataset.id),
+  'loan-now':el=>{const b=S.books.find(x=>x.id===el.dataset.id);if(!b)return;const t=today();const p={loan:{at:t,due:addDays(t,LOAN_DAYS),returned:false},hidden:false};if(b.status==='want')p.status='reading';if(b.ask)p.ask={done:true};bookUpdate(b.id,p,`빌렸어요. 반납일은 ${md(addDays(t,LOAN_DAYS))}이에요.`)},
+  return:el=>bookUpdate(el.dataset.id,{loan:{returned:true,returnedAt:today()}},'반납 완료!'),
+  extend:el=>{const b=S.books.find(x=>x.id===el.dataset.id);if(b&&b.loan)bookUpdate(b.id,{loan:{due:addDays(b.loan.due,LOAN_DAYS)}},`반납일을 ${md(addDays(b.loan.due,LOAN_DAYS))}로 미뤘어요`)},
+  'mark-done':el=>openDone(el.dataset.id),
+  series:el=>openSeries(el.dataset.id),
+  'series-new':()=>openSeriesForm(null),
+  'prep-for':el=>{S.prepFor=el.dataset.id;S.prepSel.clear();S.prepDelArmed=false;render()},
+  'prep-add':()=>openBook(null,{memberIds:S.prepFor?[S.prepFor]:[],hidden:true}),
+  'prep-all':()=>{const list=S.books.filter(b=>b.hidden&&b.memberId===S.prepFor);if(S.prepSel.size===list.length)S.prepSel.clear();else list.forEach(b=>S.prepSel.add(b.id));render()},
+  'prep-send':async()=>{const ids=[...S.prepSel];if(!ids.length)return;const now=new Date().toISOString();let n=0;for(const id of ids){if(await write(()=>Store.update(base()+'/books/'+id,{hidden:false,updatedAt:now})))n++}S.prepSel.clear();toast(`${n}권을 ${memberOf(S.prepFor)?.name||''} 책장으로 보냈어요`);render()},
+  'prep-ask':()=>{const ids=[...S.prepSel];if(!ids.length)return;openAsk(S.prepFor,ids)},
+  'prep-del':async()=>{const ids=[...S.prepSel];if(!ids.length)return;if(!S.prepDelArmed){S.prepDelArmed=true;render();return}S.prepDelArmed=false;for(const id of ids){await write(()=>Store.del(base()+'/books/'+id))}S.prepSel.clear();toast(`${ids.length}권을 지웠어요`);render()},
+  'mark-reading':el=>bookUpdate(el.dataset.id,{status:'reading'},'읽기 시작!'),
+  cheer:el=>{const b=S.books.find(x=>x.id===el.dataset.id);if(!b)return;const on=!(b.cheers||{})[S.me];write(()=>Store.update(base()+'/books/'+b.id,{cheers:{[S.me]:on}}),on?'응원을 보냈어요':'')},
+  day:el=>{S.calDay=S.calDay===el.dataset.id?null:el.dataset.id;render()},
+  'cal-prev':()=>{S.calMonth=shiftMonth(S.calMonth,-1);S.calDay=null;render()},
+  'cal-next':()=>{S.calMonth=shiftMonth(S.calMonth,1);S.calDay=null;render()},
+  'cal-today':()=>{S.calMonth=today().slice(0,7);render()},
+  'fam-prev':()=>{S.famMonth=shiftMonth(S.famMonth,-1);render()},
+  'fam-next':()=>{S.famMonth=shiftMonth(S.famMonth,1);render()},
+  'copy-code':()=>{try{navigator.clipboard.writeText(S.code).then(()=>toast('가족 코드를 복사했어요'),()=>toast('코드: '+S.code))}catch(e){toast('코드: '+S.code)}},
+  switch:()=>{closeSheet();const cur=me();if(cur&&cur.role==='kid'&&S.fam.pin){S.pinFor='__switch'}Dev.set({code:S.code,me:null});S.me=null;S.view='all';S.tab='shelf';render()},
+  pick:el=>{const m=memberOf(el.dataset.id);if(!m)return;const needPin=S.fam.pin&&(S.pinFor==='__switch'||m.role==='parent');if(needPin){S.pinFor=m.id;render();setTimeout(()=>$('#pin-in')?.focus(),30);return}choose(m.id)},
+  'pin-cancel':()=>{S.pinFor=null;render()},
+  leave:()=>{closeSheet();unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];Dev.set({});S.code=null;S.me=null;S.fam=undefined;S.err=null;S.pinFor=null;render()},
+  'import-new':()=>openImport(false),
+  'new-member-row':()=>{$('#new-members').insertAdjacentHTML('beforeend',newMemberRow())}
+};
+function choose(id){S.me=id;S.pinFor=null;S.view=memberOf(id)?.role==='parent'?'all':id;Dev.set({code:S.code,me:id});render()}
+function shiftMonth(ym,n){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`}
+
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el)return;const fn=ACT[el.dataset.act];if(!fn)return;if(el.tagName==='BUTTON'||el.tagName==='DIV')e.preventDefault();fn(el,e)});
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;render()}});
+document.addEventListener('change',e=>{const x=e.target.closest&&e.target.closest('[data-prepsel]');if(!x)return;x.checked?S.prepSel.add(x.dataset.prepsel):S.prepSel.delete(x.dataset.prepsel);S.prepDelArmed=false;render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheetWrap').hidden)closeSheet()});
+document.addEventListener('submit',async e=>{
+  if(e.target.id==='join-form'){e.preventDefault();const code=$('#join-code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');const er=$('#join-err');if(!code){er.textContent='코드를 적어 주세요.';er.hidden=false;return}
+    let ok=null;try{ok=await Store.get('fam/'+code)}catch(x){er.textContent='지금은 확인할 수 없어요. 잠시 뒤 다시 해 주세요.';er.hidden=false;return}
+    if(!ok){er.textContent='이 코드로 만든 가족이 없어요.';er.hidden=false;return}
+    Dev.set({code,me:null});connect(code);render()}
+  if(e.target.id==='new-form'){e.preventDefault();
+    const names=[...document.querySelectorAll('#new-members > div')].map(r=>({name:r.querySelector('.nm-name').value.trim(),role:r.querySelector('.nm-role').value})).filter(x=>x.name);
+    if(!names.length){toast('구성원을 한 명 이상 적어 주세요');return}
+    const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';for(let i=0;i<6;i++)code+=A[Math.floor(Math.random()*A.length)];
+    const now=new Date().toISOString();
+    const ok=await write(async()=>{
+      await Store.set('fam/'+code,{name:$('#new-name').value.trim()||'우리 가족',pin:'',createdAt:now});
+      for(let i=0;i<names.length;i++){await Store.set(`fam/${code}/members/${uid()}`,{name:names[i].name,role:names[i].role,goal:names[i].role==='kid'?8:4,phone:'',color:COLORS[i%COLORS.length],order:i,createdAt:now})}
+      await Store.set(`fam/${code}/libs/${uid()}`,{name:'우리집 책장',type:'home',createdAt:now});
+    });
+    if(ok){Dev.set({code,me:null});connect(code);render();toast('가족을 만들었어요. 코드: '+code)}}
+  if(e.target.id==='pin-form'){e.preventDefault();if($('#pin-in').value===String(S.fam.pin)){const t=S.pinFor;S.pinFor=null;if(t&&t!=='__switch')choose(t);else render()}else{$('#pin-err').hidden=false}}
+});
+
+/* ---------- 시작 ---------- */
+(async()=>{
+  try{S.loanOpen=localStorage.getItem('gbs-loanopen')!=='0'}catch(e){}
+  await Store.init();
+  try{const user=window.claude&&await window.claude.use('user');if(user){const c=await user.can('data.write');if(c===false)S.readOnly=true}}catch(e){}
+  S.ready=true;
+  const d=Dev.get();
+  if(d&&d.code){S.me=d.me||null;connect(d.code)}
+  render();
+  try{const sp=window.claude&&await window.claude.use('sample');if(sp){S.sample=sp;const lim=await sp.limits().catch(()=>null);S.sampleImg=!!(lim&&lim.images)}}catch(e){}
+})();
+// 자정이 지나면 D-day 다시 계산
+setInterval(()=>{if(S.ready&&S.code&&me()&&$('#sheetWrap').hidden)render()},60*60*1000);
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
